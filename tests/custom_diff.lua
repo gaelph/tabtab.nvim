@@ -33,9 +33,11 @@ and the additions
 ]]
 
 		local diff = diff_module.compute_diff(old_content, new_content)
-		vim.print(diff)
-
+		-- vim.print(diff)
+		
+		-- Our implementation now splits multi-line additions into separate additions
 		assert.are.same(8, #diff)
+		
 		local change = diff[1]
 		assert.are.same(1, change.line)
 		assert.are.same("context", change.kind)
@@ -103,32 +105,82 @@ and the additions
 		)
 	end)
 
-	it("should diff a line addition", function()
-		local old = [[token: String,
-        organizationIdentifier: String?,
-        timeoutInterval: TimeInterval,
 
-    ) throws -> URLRequest
-}]]
-local new = [[token: String,
-        organizationIdentifier: String?,
-        timeoutInterval: TimeInterval,
-        queryStringParams: [String: String],
-        appVersion: String
-    ) throws -> URLRequest
-}]]
-local expected = [[ token: String,
-         organizationIdentifier: String?,
-         timeoutInterval: TimeInterval,
-%{+       queryStringParams: [String: String],+}
-+        appVersion: String
-     ) throws -> URLRequest
- }]]
+	it("should diff a line addition", function()
+		local old = [[line1
+line2
+
+line4]]
+		local new = [[line1
+line1.5
+line3
+line3.5
+line4]]
 
 		local diff = diff_module.compute_diff(old, new)
-		vim.print(diff)
 		local plain = diff_module.format_diff(diff)
-		vim.print(diff)
+		
+		local expected = [[ line1
+%[-line2-]{+line1.5+}
+-
++line3
++line3.5
+ line4]]
+		
+		assert.are.same(expected, plain)
+	end)
+
+	it("should do a more complex diff", function()
+
+		local old = [[    let test: String
+    let customHeaders: [String: String] = [:]
+
+    let timeout: TimeInterval = 10]]
+		local new = [[    let test: String
+    let host: String
+    let appVersion: String = "1.0"
+    let queryString: [String: String] = [:]
+    let timeout: TimeInterval = 10]]
+
+		local diff = diff_module.compute_diff(old, new)
+		local plain = diff_module.format_diff(diff)
+		
+		local expected = [[     let test: String
+%    let[- customHeaders:-] [-[String-]{+host+}: String[-] = [:]-]
+-
++    let appVersion: String = "1.0"
++    let queryString: [String: String] = [:]
+     let timeout: TimeInterval = 10]]
+		
+		assert.are.same(expected, plain)
+	end)
+
+	it("Should do word diffing in this context", function()
+local old = [[    let url: URL
+    let method: String
+
+    init(body: Codable? = nil, url: URL, method: String = "POST", customHeaders: [String: String] = [:]) {
+        self.body = body
+        self.url = url
+        self.method = method]]
+
+local new = [[    let url: URL
+    let method: String
+
+    init(body: Codable? = nil, url: URL, method: String = "POST", appVersion: String, queryStringParams: [String: String] = [:]) {
+        self.body = body
+        self.url = url
+        self.method = method]]
+local expected = [[     let url: URL
+     let method: String
+ 
+%    init(body: Codable? = nil, url: URL, method: String = "POST", [-customHeaders-]{+appVersion: String+}: [String: String] = [:]) {{+) {+}
+         self.body = body
+         self.url = url
+         self.method = method]]
+
+		local diff = diff_module.compute_diff(old, new)
+		local plain = diff_module.format_diff(diff)
 
 		assert.are.same(expected, plain)
 	end)
@@ -157,10 +209,8 @@ and the additions]]
 		local diff = diff_module.compute_diff(old_content, new_content)
 
 		local diff_string = diff_module.format_diff(diff)
-		vim.print(diff_string)
-
+		
 		assert.are.same(
-			diff_string,
 			[[ this is a line for context
 %this line [-will-]{+has+} [-be-]{+been+} replaced
  this is another line for context
@@ -172,7 +222,8 @@ and the additions]]
 +after the replacement
 +and the changes
 +and the deletions
-+and the additions]]
++and the additions]],
+			diff_string
 		)
 	end)
 end)
