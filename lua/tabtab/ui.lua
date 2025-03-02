@@ -535,7 +535,6 @@ function M.show_hunk(hunk, hunks, bufnr)
 
 		vim.schedule(function()
 			M.highlight_word_diff(wDiff, bufnr)
-			-- highlight_hunk(bufnr, hunk)
 		end)
 	else
 		vim.schedule(function()
@@ -548,14 +547,6 @@ function M.show_hunk(hunk, hunks, bufnr)
 
 	set_keymaps(bufnr)
 	setup_autocmds(bufnr, hunk)
-
-	-- vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "TextChangedI" }, {
-	-- 	buffer = bufnr,
-	-- 	once = true,
-	-- 	callback = function()
-	-- 		reject_hunk()
-	-- 	end,
-	-- })
 end
 
 ---Calculate the visual width of a string, accounting for tabs
