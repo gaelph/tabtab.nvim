@@ -21,7 +21,7 @@ code faster.
 Features:
 - Intelligent Code Suggestions: Get contextually relevant code completions as
   you type
-- Tab-Through Experience: Accept suggestions with a simple Tab press, similar
+- Tab-Through Experience: Accept suggestions with a simple key press, similar
   to Cursor and Zed editors
 - Scope-Aware: Understands your code context to provide more accurate
   suggestions
@@ -90,8 +90,8 @@ suggestions as you type:
 1. Write code as you normally would
 2. When tabtab detects an opportunity for a suggestion, it will offer a
    completion
-3. Press Alt+Tab (default keybinding) to trigger a suggestion
-4. Use Tab to accept the suggestion and move through multiple suggestions
+3. Press Alt+Tab (default keybinding) to jump to a suggestion
+4. Use Alt+Tab to accept the suggestion, or Esc to reject it
 
 Recommended Models:
 - Zeta model by Zed Industries: Great balance of quality and speed
@@ -165,6 +165,12 @@ tabtab.nvim comes with the following default configuration:
             },
         },
 
+	-- Keymaps configuration
+	keymaps = {
+		accept_or_jump = "<M-Tab>", -- Example keymap for accepting or jumping to the next change
+		reject = "<Esc>", -- Example keymap for rejecting a change
+	},
+
         -- Maximum number of changes to keep in history
         history_size = 10,
     })
@@ -174,8 +180,8 @@ tabtab.nvim comes with the following default configuration:
 5. COMMANDS                                                 *tabtab-commands*
 
 Currently, tabtab.nvim is primarily controlled through keybindings rather than
-explicit commands. The default keybinding is Alt+Tab to trigger suggestions,
-and Tab to accept them.
+explicit commands. The default keybinding is Alt+Tab to jump to a suggestion,
+and to accept them.
 
 ==============================================================================
 6. LICENSE                                                  *tabtab-license*

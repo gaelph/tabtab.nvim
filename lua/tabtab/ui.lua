@@ -1,5 +1,12 @@
 local Differ = require("tabtab.diff")
-local M = {}
+---@class TabTab
+---@field keymaps TabTabKeymapOptions
+local M = {
+	keymaps = {
+		accept_or_jump = "<M-Tab>", -- Example keymap for moving to the next change
+		reject = "<Esc>", -- Example keymap for rejecting a change
+	},
+}
 
 local ns_id = vim.api.nvim_create_namespace("tabtab_diff_display")
 local word_diff_ns_id = vim.api.nvim_create_namespace("tabtab_word_diff_display")
@@ -8,10 +15,10 @@ local ui_augroup = vim.api.nvim_create_augroup("TabTabUI", { clear = true })
 ---@class TabTabBackup
 ---@field buffer number
 ---@field buffer_name string
----@field hunk table
----@field hunks table
----@field marks table
----@field word_diff_marks table
+---@field hunk Hunk
+---@field hunks Hunk[]
+---@field marks number[]
+---@field word_diff_marks number[]
 ---@field original_maps table
 ---@field cmp_ghost_text_state boolean|nil
 ---@field conceal_level_bkp number
@@ -44,10 +51,10 @@ local function backup_keymaps(bufnr)
 	end
 
 	-- Store original key mappings
-	local tab_mapping = vim.fn.maparg("<M-Tab>", "n", false, true)
-	local tabi_mapping = vim.fn.maparg("<M-Tab>", "i", false, true)
-	local esc_mapping = vim.fn.maparg("<Esc>", "n", false, true)
-	local esci_mapping = vim.fn.maparg("<Esc>", "i", false, true)
+	local tab_mapping = vim.fn.maparg(M.keymaps.jump_to_next, "n", false, true)
+	local tabi_mapping = vim.fn.maparg(M.keymaps.jump_to_next, "i", false, true)
+	local esc_mapping = vim.fn.maparg(M.keymaps.reject, "n", false, true)
+	local esci_mapping = vim.fn.maparg(M.keymaps.reject, "i", false, true)
 	state.original_maps = {
 		tab = tab_mapping.rhs,
 		tabi = tabi_mapping.rhs,
@@ -68,27 +75,27 @@ local function restore_keymaps(bufnr)
 
 	-- Restore original key mappings
 	if state.original_maps.tab then
-		vim.keymap.set("n", "<M-Tab>", state.original_maps.tab, { buffer = bufnr })
+		vim.keymap.set("n", M.keymaps.accept_or_jump, state.original_maps.tab, { buffer = bufnr })
 	else
-		vim.keymap.del("n", "<M-Tab>", { buffer = bufnr })
+		vim.keymap.del("n", M.keymaps.accept_or_jump, { buffer = bufnr })
 	end
 
 	if state.original_maps.tabi then
-		vim.keymap.set("i", "<M-Tab>", state.original_maps.tabi, { buffer = bufnr })
+		vim.keymap.set("i", M.keymaps.accept_or_jump, state.original_maps.tabi, { buffer = bufnr })
 	else
-		vim.keymap.del("i", "<M-Tab>", { buffer = bufnr })
+		vim.keymap.del("i", M.keymaps.accept_or_jump, { buffer = bufnr })
 	end
 
 	if state.original_maps.esc then
-		vim.keymap.set("n", "<Esc>", state.original_maps.esc, { buffer = bufnr })
+		vim.keymap.set("n", M.keymaps.reject, state.original_maps.esc, { buffer = bufnr })
 	else
-		vim.keymap.del("n", "<Esc>", { buffer = bufnr })
+		vim.keymap.del("n", M.keymaps.reject, { buffer = bufnr })
 	end
 
 	if state.original_maps.esci then
-		vim.keymap.set("i", "<Esc>", state.original_maps.esci, { buffer = bufnr })
+		vim.keymap.set("i", M.keymaps.reject, state.original_maps.esci, { buffer = bufnr })
 	else
-		vim.keymap.del("i", "<Esc>", { buffer = bufnr })
+		vim.keymap.del("i", M.keymaps.reject, { buffer = bufnr })
 	end
 end
 
@@ -120,7 +127,7 @@ end
 ---@param line number The line to set the extmark at
 local function set_extmark_after(bufnr, line)
 	return vim.api.nvim_buf_set_extmark(bufnr, ns_id, line, 0, {
-		virt_text = { { "alt Tab ->", "Changed" } },
+		virt_text = { { "TabTab ->", "Changed" } },
 		virt_text_pos = "eol",
 		hl_mode = "replace",
 	})
@@ -406,10 +413,10 @@ local function reject_hunk()
 end
 
 local function set_keymaps(bufnr)
-	vim.keymap.set("n", "<M-Tab>", accept_hunk, { buffer = bufnr })
-	vim.keymap.set("i", "<M-Tab>", accept_hunk, { buffer = bufnr })
-	vim.keymap.set("n", "<Esc>", reject_hunk, { buffer = bufnr })
-	vim.keymap.set("i", "<Esc>", reject_hunk, { buffer = bufnr })
+	vim.keymap.set("n", M.keymaps.accept_or_jump, accept_hunk, { buffer = bufnr })
+	vim.keymap.set("i", M.keymaps.accept_or_jump, accept_hunk, { buffer = bufnr })
+	vim.keymap.set("n", M.keymaps.reject, reject_hunk, { buffer = bufnr })
+	vim.keymap.set("i", M.keymaps.reject, reject_hunk, { buffer = bufnr })
 end
 
 local function setup_autocmds(bufnr, hunk)
@@ -619,7 +626,7 @@ function M.highlight_word_diff(word_diff, bufnr)
 					virt_text_pos = "overlay",
 					virt_text_win_col = change.position,
 					hl_mode = "combine",
-					priority = 600,
+					priority = 50,
 					strict = false,
 					conceal = "",
 					ui_watched = true,
@@ -630,7 +637,7 @@ function M.highlight_word_diff(word_diff, bufnr)
 					virt_text = { { change.text, "Comment" } },
 					virt_text_pos = "inline",
 					hl_mode = "combine",
-					priority = 180,
+					priority = 60,
 					strict = false,
 					ui_watched = true,
 				})
@@ -651,6 +658,11 @@ function M.highlight_word_diff(word_diff, bufnr)
 			end
 		end
 	end
+end
+
+---@param keymaps TabTabKeymapOptions
+function M.register_keymaps(keymaps)
+	M.keymaps = vim.tbl_extend("force", {}, M.keymaps, keymaps)
 end
 
 return M

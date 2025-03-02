@@ -2,6 +2,8 @@
 
 Bring the power of AI code suggestions directly into your Neovim workflow. Inspired by modern AI-powered editors like Cursor and Zed, tabtab.nvim provides intelligent, context-aware code completions that help you write better code faster.
 
+> Disclaimer: This is early stages for tabtab. Expect things to break.
+
 ## Features
 
 - **Intelligent Code Suggestions**: Get contextually relevant code completions as you type
@@ -93,8 +95,14 @@ require('tabtab').setup({
         },
     },
 
+	-- Keymaps configuration
+	keymaps = {
+		accept_or_jump = "<M-Tab>", -- Example keymap for accepting or jumping to the next change
+		reject = "<Esc>", -- Example keymap for rejecting a change
+	},
+
     -- Maximum number of changes to keep in history
-    history_size = 10,
+    history_size = 20,
 })
 ```
 
@@ -126,13 +134,13 @@ While not yet as polished as commercial offerings like Cursor or Supermaven, tab
 
 ## How It Works
 
-tabtab.nvim tracks your cursor position and code context to understand what you're working on. When you trigger a suggestion (Alt+Tab by default), it:
+tabtab.nvim tracks your cursor position and code context to understand what you're working on. When you make changes, it:
 
 1. Captures your current code scope
 2. Analyzes recent changes and diagnostics
 3. Sends this context to the configured LLM
 4. Processes the LLM's response into applicable code hunks
-5. Presents suggestions that you can accept with Tab
+5. Presents suggestions that you can accept with Alt+Tab
 
 This approach allows for contextually relevant suggestions that understand both your immediate code and the broader project structure.
 

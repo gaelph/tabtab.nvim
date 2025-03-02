@@ -32,9 +32,14 @@ local tabtabClient = require("tabtab.client")
 ---@field exclude_filetypes string[] List of filetypes to exclude
 ---@field exclude_buftypes string[] List of buffer types to exclude
 
+---@class TabTabKeymapOptions
+---@field accept_or_jump string The keymap to jump to the next suggestion
+---@field reject string The keymap to reject a suggestion
+
 ---@class TabTabConfig
 ---@field client TabTabClientOptions Configuration for the LLM client
 ---@field cursor TabTabCursorOptions Configuration for cursor tracking
+---@field keymaps TabTabKeymapOptions Configuration for keymaps
 ---@field history_size number Maximum number of changes to keep in history
 
 -- Default configuration
@@ -69,7 +74,11 @@ local default_config = {
 			"terminal",
 		},
 	},
-	history_size = 10,
+	history_size = 20,
+	keymaps = {
+		accept_or_jump = "<M-Tab>", -- Example keymap for moving to the next change
+		reject = "<Esc>", -- Example keymap for rejecting the change
+	},
 }
 
 -- Module state
@@ -82,13 +91,11 @@ M.config = vim.deepcopy(default_config)
 M.client = nil
 M.change_history = {}
 
-local HISTORY_SIZE = 10
-
 ---Adds a change to the change history
 ---Appends the change to the end of the history
 ---Limits the history to the last 10 changes
 ---@param change string
-local function add_change(change)
+function M.add_change(change)
 	local lines = vim.split(change, "\n")
 	local filename = lines[1]
 	table.remove(lines, 1)
@@ -103,7 +110,7 @@ local function add_change(change)
 			diff
 		),
 	})
-	while #M.change_history > HISTORY_SIZE do
+	while #M.change_history > M.config.history_size do
 		table.remove(M.change_history, 1)
 	end
 end
@@ -126,7 +133,7 @@ local function setup_event_handlers()
 			if current_scope then
 				-- If there is a pending change, add the diff to the message
 				if diff then
-					add_change(diff)
+					M.add_change(diff)
 				end
 
 				local diagnostics = Diagnostic.get_diagnostics(bufnr, current_scope.start_line, current_scope.end_line)
