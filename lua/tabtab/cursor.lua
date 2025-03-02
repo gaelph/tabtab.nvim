@@ -237,7 +237,7 @@ function CursorMonitor:setup_autocmds()
 
 				vim.defer_fn(function()
 					self.pause_cursor_hold = false
-				end, 1000)
+				end, 1150)
 			end
 		end,
 	})
