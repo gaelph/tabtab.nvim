@@ -593,13 +593,11 @@ function M.highlight_word_diff(word_diff, bufnr)
 		-- Track positions and content for each type of change
 		local changes_by_position = {}
 		local context_length = 0
-		local context_string = ""
 
 		-- First pass: collect all changes with their positions
 		for _, change in ipairs(line_content.changes) do
 			if change.type == "context" then
 				context_length = context_length + visual_width(change.text)
-				context_string = context_string .. change.text
 				-- vim.print("context", change.text, #change.text, context_string, context_length)
 			else
 				table.insert(changes_by_position, {
@@ -607,6 +605,9 @@ function M.highlight_word_diff(word_diff, bufnr)
 					text = change.text,
 					position = context_length,
 				})
+				if change.type == "deletion" then
+					context_length = context_length + visual_width(change.text)
+				end
 			end
 		end
 
