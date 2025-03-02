@@ -68,6 +68,7 @@ end
 ---@field buffer_name string
 ---@field previous_content string
 ---@field is_disabled boolean
+---@field pause_cursor_hold boolean
 ---@field changes_counter number
 ---@field check_timer any
 ---@field _emit_diff function
@@ -98,6 +99,7 @@ function CursorMonitor.new(bufnr)
 		self.buffer_name = vim.api.nvim_buf_get_name(bufnr)
 		self.previous_content = get_buffer_content(bufnr)
 		self.is_disabled = false
+		self.pause_cursor_hold = false
 
 		-- Function to emit diff
 		local function _emit_diff(force)
@@ -206,12 +208,15 @@ function CursorMonitor:setup_autocmds()
 	local group = vim.api.nvim_create_augroup("TabTabCursor" .. bufnr, { clear = true })
 
 	-- Store content before entering insert mode
-	vim.api.nvim_create_autocmd({ "InsertEnter", "CursorHoldI" }, {
+	vim.api.nvim_create_autocmd({ "CursorHoldI" }, {
 		group = group,
 		buffer = bufnr,
 		callback = function(event)
+			if self.pause_cursor_hold then
+				return
+			end
 			vim.print(event.event)
-			self:get_buffer_content()
+			-- self:get_buffer_content()
 			vim.defer_fn(function()
 				self:emit_diff(true)
 			end, 150)
@@ -224,10 +229,15 @@ function CursorMonitor:setup_autocmds()
 		pattern = "*:i",
 		callback = function(event)
 			if event.buf == self.bufnr then
-				self:get_buffer_content()
+				self.pause_cursor_hold = true
+				-- self:get_buffer_content()
 				vim.defer_fn(function()
 					self:emit_diff(true)
 				end, 150)
+
+				vim.defer_fn(function()
+					self.pause_cursor_hold = false
+				end, 1000)
 			end
 		end,
 	})
@@ -237,7 +247,13 @@ function CursorMonitor:setup_autocmds()
 		group = group,
 		buffer = bufnr,
 		callback = function()
-			self:emit_diff()
+			vim.defer_fn(function()
+				local mode = vim.api.nvim_get_mode()
+				if mode.mode == "n" and not mode.blocking then
+					vim.print("TextChanged")
+					self:emit_diff()
+				end
+			end, 100)
 		end,
 	})
 
@@ -249,21 +265,6 @@ function CursorMonitor:setup_autocmds()
 			self:get_buffer_content()
 		end,
 	})
-
-	-- Track changes in normal mode with a small delay
-	-- vim.api.nvim_create_autocmd({ "TextChanged" }, {
-	-- 	group = group,
-	-- 	buffer = bufnr,
-	-- 	callback = function()
-	-- 		vim.defer_fn(function()
-	-- 			local mode = vim.api.nvim_get_mode()
-	-- 			if mode.mode == "n" and not mode.blocking then
-	-- 				vim.print("TextChanged")
-	-- 				self:emit_diff()
-	-- 			end
-	-- 		end, 500)
-	-- 	end,
-	-- })
 end
 
 ---Setup function to initialize the module
