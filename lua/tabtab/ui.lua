@@ -590,7 +590,8 @@ function M.highlight_word_diff(word_diff, bufnr)
 
 	local state = states[bufnr]
 	if not state then
-		vim.notify("Can't highlight word diff: No state found for buffer " .. bufnr, vim.log.levels.ERROR)
+		-- likely the state was cleared before the function was called
+		vim.print("Can't highlight word diff: No state found for buffer " .. bufnr)
 		return
 	end
 
