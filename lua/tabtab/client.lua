@@ -58,15 +58,6 @@ function TabTabClient.new(opts)
 	---@diagnostic disable-next-line: undefined-field
 	self.provider = provider.new(self.config)
 
-	-- vim.api.nvim_create_autocmd({ "CursorMoved", "TextChanged" }, {
-	-- 	callback = function()
-	-- 		local mode = vim.api.nvim_get_mode()
-	-- 		if mode.mode == "n" and not mode.blocking then
-	-- 			TabTabClient.shutdown_current_job(self)
-	-- 		end
-	-- 	end,
-	-- })
-
 	return self, nil
 end
 
@@ -128,7 +119,7 @@ function TabTabClient:chat_completion(request, callback)
 		if obj.code == 0 and obj.stdout then
 			callback({ body = obj.stdout }, nil)
 		else
-			print("error", obj.status, obj.code, obj.stderr)
+			print("error", obj.code, obj.stderr)
 			callback(nil, obj.stderr or "Request failed")
 		end
 		vim.print("Call done")
@@ -156,7 +147,7 @@ function TabTabClient:complete(request, callback)
 		end
 
 		if response == nil then
-			print("no response", nil)
+			print("no completions", nil)
 			self:shutdown_current_job()
 			callback(nil)
 			return
@@ -188,7 +179,7 @@ function TabTabClient:complete(request, callback)
 			vim.schedule(function()
 				local result = self.provider:parse_response(response)
 				if result == nil then
-					print("no response", response.body)
+					print("no response from provider", response.body)
 					self:shutdown_current_job()
 					callback(nil)
 					return
