@@ -4,6 +4,8 @@ local M = {}
 ---@class WordDiffChange
 ---@field content string The text content
 ---@field kind "context"|"deletion"|"addition" The type of change
+---@field visual_position number
+---@field actual_position number
 
 ---@class DiffChange
 ---@field line number The line number where the change occurs
@@ -89,6 +91,30 @@ local function tokenize(str)
 	return tokens
 end
 
+---Calculate the visual width of a string, accounting for tabs
+---@param str string The string to calculate the width of
+---@return number The visual width of the string
+local function visual_width(str)
+	local expandtab = vim.api.nvim_get_option_value("expandtab", { scope = "local" })
+	local tabstop = vim.api.nvim_get_option_value("tabstop", { scope = "local" })
+
+	if expandtab then
+		return #str
+	end
+
+	local width = 0
+	for i = 1, #str do
+		local char = str:sub(i, i)
+		if char == "\t" then
+			-- Calculate how many spaces this tab represents visually
+			width = width + tabstop - (width % tabstop)
+		else
+			width = width + 1
+		end
+	end
+	return width
+end
+
 ---Performs word-level diffing between two strings
 ---@param old_str string The old string
 ---@param new_str string The new string
@@ -112,7 +138,7 @@ local function word_diff(old_str, new_str)
 	local old_idx, new_idx = 1, 1
 
 	while old_idx <= #old_tokens or new_idx <= #new_tokens do
-		if old_idx <= #old_tokens and lcs_map_a[old_idx] then
+		if old_idx <= #old_tokens and lcs_map_a[old_idx] and lcs_map_b[new_idx] then
 			-- This token is part of LCS (context)
 			table.insert(changes, {
 				content = old_tokens[old_idx],
@@ -174,11 +200,17 @@ local function word_diff(old_str, new_str)
 	for _, change in ipairs(changes) do
 		if not current_change then
 			current_change = vim.deepcopy(change)
+			current_change.visual_position = 0
+			current_change.actual_position = 0
 		elseif current_change.kind == change.kind then
 			current_change.content = current_change.content .. change.content
 		else
 			table.insert(merged_changes, current_change)
-			current_change = vim.deepcopy(change)
+			local next = vim.deepcopy(change)
+			next.visual_position = current_change.visual_position + visual_width(current_change.content)
+			next.actual_position = current_change.actual_position + #current_change.content
+
+			current_change = next
 		end
 	end
 

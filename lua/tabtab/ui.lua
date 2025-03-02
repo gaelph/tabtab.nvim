@@ -635,18 +635,22 @@ function M.highlight_word_diff(word_diff, old_start, new_start, bufnr)
 		elseif change.kind == "change" then
 			local context_visual_width = 0
 			local context_actual_width = 0
+			local count = #change.changes
 
-			for _, word_change in ipairs(change.changes) do
+			while count > 0 do
+				local word_change = change.changes[count]
+				count = count - 1
 				-- context is skipped, but we need to track the visual width
 				if word_change.kind == "context" then
 					context_visual_width = context_visual_width + visual_width(word_change.content)
 					context_actual_width = context_actual_width + #word_change.content
 				-- deletion is an overlay over the existing text
 				elseif word_change.kind == "deletion" then
+					print("adding deletion at " .. word_change.visual_position)
 					local mark_id = vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num, 0, {
 						virt_text = { { word_change.content, "DiffDelete" } },
 						virt_text_pos = "overlay",
-						virt_text_win_col = context_visual_width,
+						virt_text_win_col = word_change.visual_position,
 						hl_mode = "combine",
 						priority = 50,
 						ui_watched = true,
@@ -656,18 +660,20 @@ function M.highlight_word_diff(word_diff, old_start, new_start, bufnr)
 					table.insert(state.word_diff_marks, mark_id)
 				-- addition is an inline virtual text
 				elseif word_change.kind == "addition" then
-					local line = vim.api.nvim_buf_get_lines(bufnr, line_num, line_num + 1, false)[1]
-					vim.print(line)
-					vim.print(#line)
-					vim.print(context_actual_width)
-					local mark_id =
-						vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num, context_actual_width + 1, {
+					print("adding addition at " .. word_change.actual_position)
+					local mark_id = vim.api.nvim_buf_set_extmark(
+						bufnr,
+						word_diff_ns_id,
+						line_num,
+						word_change.actual_position + 1,
+						{
 							virt_text = { { word_change.content, "DiffAdd" } },
 							virt_text_pos = "inline",
 							priority = 60,
 							strict = false,
 							ui_watched = true,
-						})
+						}
+					)
 					table.insert(state.word_diff_marks, mark_id)
 				end
 			end
