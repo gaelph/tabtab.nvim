@@ -626,9 +626,6 @@ function M.highlight_word_diff(word_diff, bufnr)
 				})
 				table.insert(state.word_diff_marks, mark_id)
 			elseif change.type == "addition" then
-				if i == #changes_by_position then -- if it is the last change, add a newline
-					change.text = change.text .. "\r"
-				end
 				local mark_id = vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num, change.position, {
 					virt_text = { { change.text, "Comment" } },
 					virt_text_pos = "inline",
