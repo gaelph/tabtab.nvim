@@ -89,101 +89,101 @@ end
 ---Performs word-level diffing between two strings
 ---@param old_str string The old string
 ---@param new_str string The new string
----@return WordDiffChange[] changes Array of word-level changes
+---@return DiffChange[] changes Array of word-level changes
 local function word_diff(old_str, new_str)
-    local old_tokens = tokenize(old_str)
-    local new_tokens = tokenize(new_str)
-    
-    local lcs = longest_common_subsequence(old_tokens, new_tokens)
-    
-    -- Convert LCS to maps for quick lookup
-    local lcs_map_a = {}
-    local lcs_map_b = {}
-    for _, pos in ipairs(lcs) do
-        lcs_map_a[pos.a_idx] = pos.b_idx
-        lcs_map_b[pos.b_idx] = pos.a_idx
-    end
-    
-    -- Generate the changes
-    local changes = {}
-    local old_idx, new_idx = 1, 1
-    
-    while old_idx <= #old_tokens or new_idx <= #new_tokens do
-        if old_idx <= #old_tokens and lcs_map_a[old_idx] then
-            -- This token is part of LCS (context)
-            table.insert(changes, {
-                content = old_tokens[old_idx],
-                kind = "context"
-            })
-            new_idx = lcs_map_a[old_idx] + 1
-            old_idx = old_idx + 1
-        elseif old_idx <= #old_tokens and new_idx <= #new_tokens then
-            -- We have tokens in both sequences that aren't in LCS
-            -- Handle deletions first, then additions
-            local deletion_start = old_idx
-            while old_idx <= #old_tokens and not lcs_map_a[old_idx] do
-                old_idx = old_idx + 1
-            end
-            
-            if old_idx > deletion_start then
-                local deletion_content = table.concat({unpack(old_tokens, deletion_start, old_idx - 1)})
-                table.insert(changes, {
-                    content = deletion_content,
-                    kind = "deletion"
-                })
-            end
-            
-            local addition_start = new_idx
-            while new_idx <= #new_tokens and not lcs_map_b[new_idx] do
-                new_idx = new_idx + 1
-            end
-            
-            if new_idx > addition_start then
-                local addition_content = table.concat({unpack(new_tokens, addition_start, new_idx - 1)})
-                table.insert(changes, {
-                    content = addition_content,
-                    kind = "addition"
-                })
-            end
-        elseif old_idx <= #old_tokens then
-            -- Only old tokens left (deletions)
-            local deletion_content = table.concat({unpack(old_tokens, old_idx)})
-            table.insert(changes, {
-                content = deletion_content,
-                kind = "deletion"
-            })
-            break
-        elseif new_idx <= #new_tokens then
-            -- Only new tokens left (additions)
-            local addition_content = table.concat({unpack(new_tokens, new_idx)})
-            table.insert(changes, {
-                content = addition_content,
-                kind = "addition"
-            })
-            break
-        end
-    end
-    
-    -- Merge adjacent changes of the same type
-    local merged_changes = {}
-    local current_change = nil
-    
-    for _, change in ipairs(changes) do
-        if not current_change then
-            current_change = vim.deepcopy(change)
-        elseif current_change.kind == change.kind then
-            current_change.content = current_change.content .. change.content
-        else
-            table.insert(merged_changes, current_change)
-            current_change = vim.deepcopy(change)
-        end
-    end
-    
-    if current_change then
-        table.insert(merged_changes, current_change)
-    end
-    
-    return merged_changes
+	local old_tokens = tokenize(old_str)
+	local new_tokens = tokenize(new_str)
+
+	local lcs = longest_common_subsequence(old_tokens, new_tokens)
+
+	-- Convert LCS to maps for quick lookup
+	local lcs_map_a = {}
+	local lcs_map_b = {}
+	for _, pos in ipairs(lcs) do
+		lcs_map_a[pos.a_idx] = pos.b_idx
+		lcs_map_b[pos.b_idx] = pos.a_idx
+	end
+
+	-- Generate the changes
+	local changes = {}
+	local old_idx, new_idx = 1, 1
+
+	while old_idx <= #old_tokens or new_idx <= #new_tokens do
+		if old_idx <= #old_tokens and lcs_map_a[old_idx] then
+			-- This token is part of LCS (context)
+			table.insert(changes, {
+				content = old_tokens[old_idx],
+				kind = "context",
+			})
+			new_idx = lcs_map_a[old_idx] + 1
+			old_idx = old_idx + 1
+		elseif old_idx <= #old_tokens and new_idx <= #new_tokens then
+			-- We have tokens in both sequences that aren't in LCS
+			-- Handle deletions first, then additions
+			local deletion_start = old_idx
+			while old_idx <= #old_tokens and not lcs_map_a[old_idx] do
+				old_idx = old_idx + 1
+			end
+
+			if old_idx > deletion_start then
+				local deletion_content = table.concat({ unpack(old_tokens, deletion_start, old_idx - 1) })
+				table.insert(changes, {
+					content = deletion_content,
+					kind = "deletion",
+				})
+			end
+
+			local addition_start = new_idx
+			while new_idx <= #new_tokens and not lcs_map_b[new_idx] do
+				new_idx = new_idx + 1
+			end
+
+			if new_idx > addition_start then
+				local addition_content = table.concat({ unpack(new_tokens, addition_start, new_idx - 1) })
+				table.insert(changes, {
+					content = addition_content,
+					kind = "addition",
+				})
+			end
+		elseif old_idx <= #old_tokens then
+			-- Only old tokens left (deletions)
+			local deletion_content = table.concat({ unpack(old_tokens, old_idx) })
+			table.insert(changes, {
+				content = deletion_content,
+				kind = "deletion",
+			})
+			break
+		elseif new_idx <= #new_tokens then
+			-- Only new tokens left (additions)
+			local addition_content = table.concat({ unpack(new_tokens, new_idx) })
+			table.insert(changes, {
+				content = addition_content,
+				kind = "addition",
+			})
+			break
+		end
+	end
+
+	-- Merge adjacent changes of the same type
+	local merged_changes = {}
+	local current_change = nil
+
+	for _, change in ipairs(changes) do
+		if not current_change then
+			current_change = vim.deepcopy(change)
+		elseif current_change.kind == change.kind then
+			current_change.content = current_change.content .. change.content
+		else
+			table.insert(merged_changes, current_change)
+			current_change = vim.deepcopy(change)
+		end
+	end
+
+	if current_change then
+		table.insert(merged_changes, current_change)
+	end
+
+	return merged_changes
 end
 
 ---Computes line-level diff between two strings
@@ -261,6 +261,47 @@ function M.compute_diff(old_content, new_content)
 	end
 
 	return changes
+end
+
+---Formats diff changes as a string for debugging
+---@param changes DiffChange[] Array of diff changes
+---@return string formatted_diff The formatted diff string
+function M.format_diff(changes)
+	local result = {}
+
+	for _, change in ipairs(changes) do
+		if change.kind == "context" then
+			-- Context lines are prepended with a space
+			table.insert(result, " " .. change.content)
+		elseif change.kind == "deletion" then
+			-- Deleted lines are prepended with a minus sign
+			table.insert(result, "-" .. change.content)
+		elseif change.kind == "addition" then
+			-- Added lines are prepended with a plus sign
+			-- Split multi-line additions
+			local added_lines = vim.split(change.content, "\n")
+			for _, line in ipairs(added_lines) do
+				table.insert(result, "+" .. line)
+			end
+		elseif change.kind == "change" then
+			-- Changed lines are prepended with a percent sign
+			local formatted_line = ""
+
+			for _, word_change in ipairs(change.changes) do
+				if word_change.kind == "context" then
+					formatted_line = formatted_line .. word_change.content
+				elseif word_change.kind == "deletion" then
+					formatted_line = formatted_line .. "[-" .. word_change.content .. "-]"
+				elseif word_change.kind == "addition" then
+					formatted_line = formatted_line .. "{+" .. word_change.content .. "+}"
+				end
+			end
+
+			table.insert(result, "%" .. formatted_line)
+		end
+	end
+
+	return table.concat(result, "\n")
 end
 
 return M ---@type CustomDiff
