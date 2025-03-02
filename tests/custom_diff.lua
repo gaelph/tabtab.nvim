@@ -174,7 +174,7 @@ local new = [[    let url: URL
 local expected = [[     let url: URL
      let method: String
  
-%    init(body: Codable? = nil, url: URL, method: String = "POST", [-customHeaders-]{+appVersion: String+}: [String: String] = [:]) {{+) {+}
+%    init(body: Codable? = nil, url: URL, method: String = "POST"{+, appVersion: String+}, [-customHeaders-]{+queryStringParams+}: [String: String] = [:]) {
          self.body = body
          self.url = url
          self.method = method]]
@@ -184,6 +184,37 @@ local expected = [[     let url: URL
 
 		assert.are.same(expected, plain)
 	end)
+
+  it("should diff an autocomand", function()
+    local old = [[vim.api.nvim_create_autocmd({ "CursorHoldI" }, {
+buffer = bufnr,
+callback = function()
+
+  M.do_something()
+end
+    })]]
+    local new = [[vim.api.nvim_create_autocmd({ "CursorHoldI" }, {
+buffer = bufnr,
+callback = function(event)
+  print(event.event)
+
+  M.do_something()
+end
+    })]]
+    local expected = [[ vim.api.nvim_create_autocmd({ "CursorHoldI" }, {
+ buffer = bufnr,
+%callback = function({+event+})
++  print(event.event)
+ 
+   M.do_something()
+ end
+     })]]
+
+    local diff = diff_module.compute_diff(old, new)
+    local plain = diff_module.format_diff(diff)
+
+    assert.are.same(expected, plain)
+  end)
 
 	it("should print the diff", function()
 		local old_content = [[this is a line for context
