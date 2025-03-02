@@ -1,7 +1,9 @@
 local Differ = require("tabtab.diff")
 ---@class TabTab
 ---@field keymaps TabTabKeymapOptions
+---@field is_presenting boolean
 local M = {
+	is_presenting = false,
 	keymaps = {
 		accept_or_jump = "<M-Tab>", -- Example keymap for moving to the next change
 		reject = "<Esc>", -- Example keymap for rejecting a change
@@ -125,6 +127,8 @@ function M.clear_diff_display(bufnr)
 
 	restore_keymaps(bufnr)
 	states[bufnr] = nil
+
+	M.is_presenting = false
 end
 
 ---Sets an extmark at the end of a line
@@ -520,6 +524,7 @@ function M.show_hunk(hunk, hunks, bufnr)
 	backup_keymaps(bufnr)
 
 	if M.hunk_contains_cursor(hunk, bufnr) then
+		M.is_presenting = true
 		-- Close completion menu if nvim-cmp is available and active
 		close_completion_menu()
 

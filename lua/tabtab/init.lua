@@ -124,6 +124,10 @@ local function setup_event_handlers()
 				return
 			end
 
+			if ui.is_presenting then
+				return
+			end
+
 			local diff = args.data.diff
 			local bufnr = args.data.bufnr
 			local buffer_name = args.data.buffer_name
@@ -160,10 +164,10 @@ local function setup_event_handlers()
 						return
 					end
 
-					-- if old_scope.text ~= current_scope.text then
-					-- 	vim.print("Suggestion discarded because scope has changed")
-					-- 	return
-					-- end
+					if old_scope.text ~= current_scope.text then
+						vim.print("Suggestion discarded because scope has changed")
+						return
+					end
 
 					if hunks == nil or #hunks == 0 then
 						vim.print("No hunks to apply")
