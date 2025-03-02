@@ -206,11 +206,11 @@ function CursorMonitor:setup_autocmds()
 	local group = vim.api.nvim_create_augroup("TabTabCursor" .. bufnr, { clear = true })
 
 	-- Store content before entering insert mode
-	vim.api.nvim_create_autocmd({ "InsertEnter" }, {
+	vim.api.nvim_create_autocmd({ "InsertEnter", "CursorHoldI" }, {
 		group = group,
 		buffer = bufnr,
-		callback = function()
-			vim.print("InsertEnter")
+		callback = function(event)
+			vim.print(event.event)
 			self:get_buffer_content()
 			vim.defer_fn(function()
 				self:emit_diff(true)
@@ -233,14 +233,11 @@ function CursorMonitor:setup_autocmds()
 	})
 
 	-- Track all text changes
-	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
+	vim.api.nvim_create_autocmd({ "TextChanged" }, {
 		group = group,
 		buffer = bufnr,
 		callback = function()
-			self.changes_counter = self.changes_counter + 1
-			if self.changes_counter >= 5 then -- Emit diff after 5 changes
-				self:emit_diff()
-			end
+			self:emit_diff()
 		end,
 	})
 
