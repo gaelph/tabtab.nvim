@@ -102,4 +102,77 @@ and the additions
 			change.content
 		)
 	end)
+
+	it("should diff a line addition", function()
+		local old = [[token: String,
+        organizationIdentifier: String?,
+        timeoutInterval: TimeInterval,
+
+    ) throws -> URLRequest
+}]]
+local new = [[token: String,
+        organizationIdentifier: String?,
+        timeoutInterval: TimeInterval,
+        queryStringParams: [String: String],
+        appVersion: String
+    ) throws -> URLRequest
+}]]
+local expected = [[ token: String,
+         organizationIdentifier: String?,
+         timeoutInterval: TimeInterval,
+%{+       queryStringParams: [String: String],+}
++        appVersion: String
+     ) throws -> URLRequest
+ }]]
+
+		local diff = diff_module.compute_diff(old, new)
+		vim.print(diff)
+		local plain = diff_module.format_diff(diff)
+		vim.print(diff)
+
+		assert.are.same(expected, plain)
+	end)
+
+	it("should print the diff", function()
+		local old_content = [[this is a line for context
+this line will be replaced
+this is another line for context
+this line should be deleted
+
+this is a line for context
+it is important to have some context]]
+
+		local new_content = [[this is a line for context
+this line has been replaced
+this is another line for context
+
+this is a line for context
+it is important to have some context
+to see if those lines are added
+after the replacement
+and the changes
+and the deletions
+and the additions]]
+
+		local diff = diff_module.compute_diff(old_content, new_content)
+
+		local diff_string = diff_module.format_diff(diff)
+		vim.print(diff_string)
+
+		assert.are.same(
+			diff_string,
+			[[ this is a line for context
+%this line [-will-]{+has+} [-be-]{+been+} replaced
+ this is another line for context
+-this line should be deleted
+ 
+ this is a line for context
+ it is important to have some context
++to see if those lines are added
++after the replacement
++and the changes
++and the deletions
++and the additions]]
+		)
+	end)
 end)
