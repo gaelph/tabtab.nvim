@@ -622,6 +622,7 @@ function M.highlight_word_diff(word_diff, bufnr)
 		-- Second pass: create extmarks at the correct positions
 		for i, change in ipairs(changes_by_position) do
 			if change.type == "deletion" then
+				-- deleted text can be rendered as an overlay over the existing text
 				local mark_id = vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num, 0, {
 					virt_text = { { change.text, "DiffStrikeThrough" } },
 					virt_text_pos = "overlay",
@@ -634,8 +635,14 @@ function M.highlight_word_diff(word_diff, bufnr)
 				})
 				table.insert(state.word_diff_marks, mark_id)
 			elseif change.type == "addition" then
+				-- if additions span multiple lines, render them as virtual lines
+				-- except for the first line, which is rendered as an inline vertual text
+				local lines = vim.split(change.text, "\n")
+				local first_line = lines[1]
+				table.remove(lines, 1)
+
 				local mark_id = vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num, change.position, {
-					virt_text = { { change.text, "Comment" } },
+					virt_text = { { first_line, "Comment" } },
 					virt_text_pos = "inline",
 					hl_mode = "combine",
 					priority = 60,
@@ -643,6 +650,20 @@ function M.highlight_word_diff(word_diff, bufnr)
 					ui_watched = true,
 				})
 				table.insert(state.word_diff_marks, mark_id)
+
+				if #lines > 0 then
+					mark_id = vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num, 0, {
+						virt_lines = vim.tbl_map(function(line)
+							return { { line, "Comment" } }
+						end, lines),
+						virt_lines_above = false,
+						hl_mode = "combine",
+						priority = 60,
+						strict = false,
+						ui_watched = true,
+					})
+					table.insert(state.word_diff_marks, mark_id)
+				end
 			end
 		end
 
