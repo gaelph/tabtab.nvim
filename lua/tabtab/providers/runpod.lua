@@ -1,4 +1,5 @@
 local TabTabProvider = require("tabtab.providers.tabtab")
+local Prompt = require("tabtab.prompt")
 
 ---A provider for the Runpod API
 ---@class TabTabRunpodProvider
@@ -27,47 +28,13 @@ end
 
 ---@param request TabTabInferenceRequest
 function TabTabRunpodProvider:make_request_body(request, opts)
-	opts = vim.tbl_deep_extend("force", {}, self.defaults, opts or {})
-	local message = string.format(
-		[[
-User excerpt:
-```
-%s
-%s
-```]],
-		request.excerpt.filename,
-		request.excerpt.text
-	)
-
-	if request.edits and #request.edits > 0 then
-		local edits = {} --[[ @as string[] ]]
-		for _, edit in ipairs(request.edits) do
-			table.insert(
-				edits,
-				string.format(
-					[[User edited %s:
-%s
-]],
-					edit.filename,
-					edit.diff
-				)
-			)
-		end
-
-		message = string.format(
-			[[User edited:
-%s
-
-%s
-			]],
-			table.concat(edits, "\n"),
-			message
-		)
-	end
+	opts = vim.tbl_deep_extend("force", {}, self.defaults or {}, opts or {})
+	local system = Prompt.system
+	local message = Prompt.format_prompt(request)
 
 	local body = {
 		input = {
-			prompt = message,
+			prompt = string.format("%s\n%s", system, message),
 			sampling_params = {
 				temperature = opts.temperature,
 				max_tokens = opts.max_tokens,
