@@ -229,6 +229,7 @@ function CursorMonitor:setup_autocmds()
 		pattern = "*:i",
 		callback = function(event)
 			if event.buf == self.bufnr then
+				vim.print(event.event)
 				self.pause_cursor_hold = true
 				-- self:get_buffer_content()
 				vim.defer_fn(function()
@@ -246,7 +247,8 @@ function CursorMonitor:setup_autocmds()
 	vim.api.nvim_create_autocmd({ "TextChanged" }, {
 		group = group,
 		buffer = bufnr,
-		callback = function()
+		callback = function(event)
+			vim.print(event.event)
 			vim.defer_fn(function()
 				local mode = vim.api.nvim_get_mode()
 				if mode.mode == "n" and not mode.blocking then
@@ -261,7 +263,8 @@ function CursorMonitor:setup_autocmds()
 	vim.api.nvim_create_autocmd({ "CmdlineEnter" }, {
 		group = group,
 		buffer = bufnr,
-		callback = function()
+		callback = function(event)
+			vim.print(event.event)
 			self:get_buffer_content()
 		end,
 	})
