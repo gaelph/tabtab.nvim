@@ -22,12 +22,14 @@ local ui_augroup = vim.api.nvim_create_augroup("TabTabUI", { clear = true })
 ---@field original_maps table
 ---@field cmp_ghost_text_state boolean|nil
 ---@field conceal_level_bkp number
+---@field conceal_cursor_bkp string
 
 ---Create a new backup state
 ---@param bufnr number
 ---@return TabTabBackup
 local function new_state(bufnr, hunk, hunks)
 	local conceal_level_bkp = vim.api.nvim_get_option_value("conceallevel", { scope = "local" })
+	local conceal_cursor_bkp = vim.api.nvim_get_option_value("concealcursor", { scope = "local" })
 	return {
 		buffer = bufnr,
 		buffer_name = vim.api.nvim_buf_get_name(bufnr),
@@ -38,6 +40,7 @@ local function new_state(bufnr, hunk, hunks)
 		original_maps = {},
 		cmp_ghost_text_state = nil,
 		conceal_level_bkp = conceal_level_bkp,
+		conceal_cursor_bkp = conceal_cursor_bkp,
 	}
 end
 
@@ -107,6 +110,8 @@ function M.clear_diff_display(bufnr)
 
 	local conceal = state.conceal_level_bkp
 	vim.api.nvim_set_option_value("conceallevel", conceal, { scope = "local" })
+	local conceal_cursor_bkp = state.conceal_cursor_bkp
+	vim.api.nvim_set_option_value("concealcursor", conceal_cursor_bkp, { scope = "local" })
 
 	-- Clear marks and restore original key mappings
 	for _, mark in ipairs(state.marks) do
