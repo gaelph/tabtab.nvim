@@ -32,11 +32,11 @@ This is the last line
 
 		-- Check the changes in line 2
 		assert.are.same(4, #line2.changes)
-		assert.are.same("context", line2.changes[1].type)
+		assert.are.same("context", line2.changes[1].kind)
 		assert.are.same("This is the ", line2.changes[1].text)
-		assert.are.same("deletion", line2.changes[2].type)
+		assert.are.same("deletion", line2.changes[2].kind)
 		assert.are.same("second", line2.changes[2].text)
-		assert.are.same("addition", line2.changes[3].type)
+		assert.are.same("addition", line2.changes[3].kind)
 		assert.are.same("modified", line2.changes[3].text)
 
 		-- Check that we can process the result further
@@ -45,11 +45,11 @@ This is the last line
 		local modified_line2 = ""
 
 		for _, change in ipairs(line2.changes) do
-			if change.type == "context" or change.type == "deletion" then
+			if change.kind == "context" or change.kind == "deletion" then
 				original_line2 = original_line2 .. change.text
 			end
 
-			if change.type == "context" or change.type == "addition" then
+			if change.kind == "context" or change.kind == "addition" then
 				modified_line2 = modified_line2 .. change.text
 			end
 		end

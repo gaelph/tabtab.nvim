@@ -525,16 +525,21 @@ function M.show_hunk(hunk, hunks, bufnr)
 
 		local old_content, new_content = M.hunk_get_versions(hunk)
 
-		local plainDiff = Differ.create_word_diff(old_content, new_content)
-		-- vim.print("=== WORD DIFF ===")
-		-- vim.print(plainDiff)
-		local wDiff = Differ.word_diff(plainDiff)
+		vim.print("=== OLD ===")
+		vim.print(old_content)
+		vim.print("=== NEW ===")
+		vim.print(new_content)
 
-		wDiff.hunk.start_line = hunk.start_line
-		wDiff.hunk.new_start_line = hunk.start_new_line
+		local wDiff = Differ.word_diff(old_content, new_content)
+		local plainDiff = Differ.format_diff(wDiff)
+		vim.print("=== WORD DIFF ===")
+		vim.print(plainDiff)
+
+		local old_start = hunk.start_line
+		local new_start = hunk.start_new_line
 
 		vim.schedule(function()
-			M.highlight_word_diff(wDiff, bufnr)
+			M.highlight_word_diff(wDiff, old_start, new_start, bufnr)
 		end)
 	else
 		vim.schedule(function()
@@ -574,16 +579,11 @@ local function visual_width(str)
 end
 
 ---Displays word diff results with extmarks
----@param word_diff WordDiff The result of a call to word_diff
+---@param word_diff DiffChange[] The result of a call to word_diff
+---@param old_start number The line number of the first line in the old content
+---@param new_start number The line number of the first line in the new content
 ---@param bufnr number The buffer number
-function M.highlight_word_diff(word_diff, bufnr)
-	local hunk = word_diff.hunk
-	local start_line = hunk.start_line
-	local new_start_line = hunk.new_start_line - 1
-
-	local pending_new_lines = {}
-	local last_line_with_new_content = nil
-
+function M.highlight_word_diff(word_diff, old_start, new_start, bufnr)
 	local state = states[bufnr]
 	if not state then
 		-- likely the state was cleared before the function was called
@@ -591,90 +591,84 @@ function M.highlight_word_diff(word_diff, bufnr)
 		return
 	end
 
-	for _, line_content in ipairs(hunk.lines) do
-		local line_num = new_start_line + line_content.absolute_line_num - 1 -- 0-based for API
+	local start_line = new_start - 1
 
-		-- Track positions and content for each type of change
-		local changes_by_position = {}
-		local context_length = 0
+	for index, change in ipairs(word_diff) do
+		local line_num = start_line + index - 1
 
-		-- First pass: collect all changes with their positions
-		for _, change in ipairs(line_content.changes) do
-			if change.type == "context" then
-				context_length = context_length + visual_width(change.text)
-				-- vim.print("context", change.text, #change.text, context_string, context_length)
-			else
-				table.insert(changes_by_position, {
-					type = change.type,
-					text = change.text,
-					position = context_length,
-				})
-				if change.type == "deletion" then
-					context_length = context_length + visual_width(change.text)
-				end
-			end
-		end
+		-- context is skipped altogether
+		if change.kind == "context" then
+			goto continue
+		-- Whole line removal is an overlay over the existing text
+		elseif change.kind == "deletion" then
+			local mark_id = vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num, 0, {
+				virt_text = { { change.content, "DiffDelete" } },
+				virt_text_pos = "overlay",
+				hl_mode = "combine",
+				priority = 50,
+				ui_watched = true,
+			})
+			table.insert(state.word_diff_marks, mark_id)
 
-		-- Second pass: create extmarks at the correct positions
-		for i, change in ipairs(changes_by_position) do
-			if change.type == "deletion" then
-				-- deleted text can be rendered as an overlay over the existing text
-				local mark_id = vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num, 0, {
-					virt_text = { { change.text, "DiffStrikeThrough" } },
-					virt_text_pos = "overlay",
-					virt_text_win_col = change.position,
-					hl_mode = "combine",
-					priority = 50,
-					strict = false,
-					conceal = "",
-					ui_watched = true,
-				})
-				table.insert(state.word_diff_marks, mark_id)
-			elseif change.type == "addition" then
-				-- if additions span multiple lines, render them as virtual lines
-				-- except for the first line, which is rendered as an inline vertual text
-				local lines = vim.split(change.text, "\n")
-				local first_line = lines[1]
-				table.remove(lines, 1)
+		-- Whole line addition is virtual lines below the existing text
+		elseif change.kind == "addition" then
+			local above = line_num == 1 -- above the first line of the file
 
-				local mark_id = vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num, change.position, {
-					virt_text = { { first_line, "Comment" } },
-					virt_text_pos = "inline",
-					hl_mode = "combine",
-					priority = 60,
-					strict = false,
-					ui_watched = true,
-				})
-				table.insert(state.word_diff_marks, mark_id)
+			local mark_id = vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num - 1, 0, {
+				virt_lines = vim.tbl_map(function(line)
+					return { { line, "DiffAdd" } }
+				end, vim.split(change.content, "\n")),
+				virt_lines_above = above,
+				hl_mode = "combine",
+				strict = false,
+				priority = 60,
+				ui_watched = true,
+			})
+			table.insert(state.word_diff_marks, mark_id)
 
-				if #lines > 0 then
-					mark_id = vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num, 0, {
-						virt_lines = vim.tbl_map(function(line)
-							return { { line, "Comment" } }
-						end, lines),
-						virt_lines_above = false,
+		-- Word-level change is a combination of overlays and inline virtual text
+		elseif change.kind == "change" then
+			local context_visual_width = 0
+			local context_actual_width = 0
+
+			for _, word_change in ipairs(change.changes) do
+				-- context is skipped, but we need to track the visual width
+				if word_change.kind == "context" then
+					context_visual_width = context_visual_width + visual_width(word_change.content)
+					context_actual_width = context_actual_width + #word_change.content
+				-- deletion is an overlay over the existing text
+				elseif word_change.kind == "deletion" then
+					local mark_id = vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num, 0, {
+						virt_text = { { word_change.content, "DiffDelete" } },
+						virt_text_pos = "overlay",
+						virt_text_win_col = context_visual_width,
 						hl_mode = "combine",
-						priority = 60,
-						strict = false,
+						priority = 50,
 						ui_watched = true,
 					})
+					context_visual_width = context_visual_width + visual_width(word_change.content)
+					context_actual_width = context_actual_width + #word_change.content
+					table.insert(state.word_diff_marks, mark_id)
+				-- addition is an inline virtual text
+				elseif word_change.kind == "addition" then
+					local line = vim.api.nvim_buf_get_lines(bufnr, line_num, line_num + 1, false)[1]
+					vim.print(line)
+					vim.print(#line)
+					vim.print(context_actual_width)
+					local mark_id =
+						vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num, context_actual_width + 1, {
+							virt_text = { { word_change.content, "DiffAdd" } },
+							virt_text_pos = "inline",
+							priority = 60,
+							strict = false,
+							ui_watched = true,
+						})
 					table.insert(state.word_diff_marks, mark_id)
 				end
 			end
 		end
 
-		-- Check if this is a completely new line (only additions, no context)
-		local is_new_line = true
-		local addition_text = ""
-
-		for _, change in ipairs(line_content.changes) do
-			if change.type == "context" then
-				is_new_line = false
-				break
-			elseif change.type == "addition" then
-				addition_text = addition_text .. change.text
-			end
-		end
+		::continue::
 	end
 end
 

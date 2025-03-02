@@ -1,4 +1,5 @@
 local parser = require("tabtab.diff.parser")
+local custom_diff = require("tabtab.diff.custom")
 
 ---@class Differ
 local M = {}
@@ -35,34 +36,19 @@ function M.diff(old_content, new_content, filename)
 	return diff
 end
 
----Computes the diff between two strings.
+---Computes a word diff between two strings
 ---@param old_content string
 ---@param new_content string
+---@return DiffChange[]
+function M.word_diff(old_content, new_content)
+	return custom_diff.compute_diff(old_content, new_content)
+end
+
+---Formats a word diff into a string
+---@param diff DiffChange[]
 ---@return string
-function M.create_word_diff(old_content, new_content)
-	-- Create temporary files for diff
-	local old_file = vim.fn.tempname()
-	local new_file = vim.fn.tempname()
-
-	-- Write contents to temporary files
-	vim.fn.writefile(vim.split(old_content, "\n"), old_file)
-	vim.fn.writefile(vim.split(new_content, "\n"), new_file)
-
-	-- Get diff using system diff command with character-level granularity
-	local diff = vim.fn.system({
-		"git",
-		"diff",
-		"--word-diff",
-		"--word-diff-regex=[[:alnum:]]+|[^[:alnum:][:space:]]",
-		old_file,
-		new_file,
-	})
-
-	-- Clean up temporary files
-	vim.fn.delete(old_file)
-	vim.fn.delete(new_file)
-
-	return diff
+function M.format_diff(diff)
+	return custom_diff.format_diff(diff)
 end
 
 ---
@@ -144,138 +130,6 @@ function M.apply_hunk(hunk, bufnr)
 	end)
 end
 
----@class WordDiffHunk
----@field start_line number The starting line number of the hunk
----@field new_start_line number The starting line number of the hunk in the new content
----@field count number The number of lines in the hunk
----@field lines WordDiffContent[] The lines in this hunk with their changes
-
----@class WordDiff
----@field header string[]
----@field hunk WordDiffHunk Hunk containing changes
-
----@class WordDiffContent
----@field line_num number
----@field absolute_line_num number
----@field changes WordDiffChange[]
-
----@class WordDiffChange
----@field type "context"|"deletion"|"addition"
----@field text string
-
--- Parse the @@ line to extract line numbers
-local function parse_hunk_header(header)
-	-- @@ -start,count +start,count @@
-	local old_start, old_count, new_start, new_count = header:match("^@@ %-(%d+),?(%d*) %+(%d+),?(%d*) @@")
-
-	return {
-		old_start = tonumber(old_start),
-		old_count = tonumber(old_count) or 1,
-		new_start = tonumber(new_start),
-		new_count = tonumber(new_count) or 1,
-	}
-end
-
----Parse a git word diff format string and group changes into hunks
----@param diff string The git word diff output
----@return WordDiff
-function M.word_diff(diff)
-	local result = {
-		header = {},
-		hunk = nil,
-	}
-
-	local in_header = true
-	local absolute_line_num = 0
-	local hunk_line_num = 0
-
-	for _, line in ipairs(vim.split(diff, "\n")) do
-		-- Check if we're still in the header section
-		if in_header then
-			if line:match("^@@") then
-				-- This is the last line of the header
-				table.insert(result.header, line)
-				in_header = false
-
-				-- Start a new hunk
-				local hunk_info = parse_hunk_header(line)
-				result.hunk = {
-					start_line = hunk_info.old_start,
-					count = hunk_info.old_count,
-					lines = {},
-				}
-				absolute_line_num = hunk_info.old_start - 1
-				hunk_line_num = 0
-			elseif line ~= "" then
-				table.insert(result.header, line)
-			end
-		else
-			-- We're in the content section
-			absolute_line_num = absolute_line_num + 1
-			hunk_line_num = hunk_line_num + 1
-
-			-- Parse the line to extract word diff markers
-			local changes = {}
-			local pos = 1
-			local current_text = ""
-			local current_type = "context"
-
-			-- Process the line character by character to handle the markers
-			while pos <= #line do
-				if line:sub(pos, pos + 1) == "[-" then
-					-- Start of deletion
-					if current_text ~= "" then
-						table.insert(changes, { type = current_type, text = current_text })
-						current_text = ""
-					end
-					current_type = "deletion"
-					pos = pos + 2
-				elseif line:sub(pos, pos + 1) == "-]" then
-					-- End of deletion
-					table.insert(changes, { type = current_type, text = current_text })
-					current_text = ""
-					current_type = "context"
-					pos = pos + 2
-				elseif line:sub(pos, pos + 1) == "{+" then
-					-- Start of addition
-					if current_text ~= "" then
-						table.insert(changes, { type = current_type, text = current_text })
-						current_text = ""
-					end
-					current_type = "addition"
-					pos = pos + 2
-				elseif line:sub(pos, pos + 1) == "+}" then
-					-- End of addition
-					table.insert(changes, { type = current_type, text = current_text })
-					current_text = ""
-					current_type = "context"
-					pos = pos + 2
-				else
-					-- Regular character
-					current_text = current_text .. line:sub(pos, pos)
-					pos = pos + 1
-				end
-			end
-
-			-- Add any remaining text
-			if current_text ~= "" then
-				table.insert(changes, { type = current_type, text = current_text })
-			end
-
-			-- Add this line to the current hunk
-			if result.hunk then
-				table.insert(result.hunk.lines, {
-					line_num = hunk_line_num,
-					absolute_line_num = absolute_line_num,
-					changes = changes,
-				})
-			end
-		end
-	end
-
-	return result
-end
-
 function M.parse(diff, start_line)
 	return parser.parse(diff, start_line)
 end
@@ -337,10 +191,10 @@ function M.apply_word_diff(word_diff, bufnr)
 			local new_line = ""
 
 			for _, change in ipairs(line_content.changes) do
-				if change.type == "context" or change.type == "deletion" then
+				if change.kind == "context" or change.kind == "deletion" then
 					is_new_line = false
 					break
-				elseif change.type == "addition" then
+				elseif change.kind == "addition" then
 					new_line = new_line .. change.text
 				end
 			end

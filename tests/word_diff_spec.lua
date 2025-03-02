@@ -53,9 +53,9 @@ index 1234567..abcdef0 100644
 
 		-- Check the changes array
 		assert.are.same(2, #line.changes)
-		assert.are.same("deletion", line.changes[1].type)
+		assert.are.same("deletion", line.changes[1].kind)
 		assert.are.same("old content", line.changes[1].text)
-		assert.are.same("addition", line.changes[2].type)
+		assert.are.same("addition", line.changes[2].kind)
 		assert.are.same("new content", line.changes[2].text)
 	end)
 
@@ -76,15 +76,15 @@ This is [-old-]{+new+} text with more [-content-]{+changes+}
 
 		-- Check the changes array - should have 5 elements
 		assert.are.same(6, #line.changes)
-		assert.are.same("context", line.changes[1].type)
+		assert.are.same("context", line.changes[1].kind)
 		assert.are.same("This is ", line.changes[1].text)
-		assert.are.same("deletion", line.changes[2].type)
+		assert.are.same("deletion", line.changes[2].kind)
 		assert.are.same("old", line.changes[2].text)
-		assert.are.same("addition", line.changes[3].type)
+		assert.are.same("addition", line.changes[3].kind)
 		assert.are.same("new", line.changes[3].text)
-		assert.are.same("context", line.changes[4].type)
+		assert.are.same("context", line.changes[4].kind)
 		assert.are.same(" text with more ", line.changes[4].text)
-		assert.are.same("deletion", line.changes[5].type)
+		assert.are.same("deletion", line.changes[5].kind)
 		assert.are.same("content", line.changes[5].text)
 	end)
 
