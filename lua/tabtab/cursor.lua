@@ -1,5 +1,5 @@
 local Differ = require("tabtab.diff")
-local defer = require("utils.debounce")
+local defer = require("tabtab.utils.defer")
 
 local M = {}
 
@@ -100,7 +100,7 @@ function CursorMonitor.new(bufnr)
 		self.is_disabled = false
 
 		-- Function to emit diff
-		local function _emit_diff()
+		local function _emit_diff(force)
 			if not vim.api.nvim_buf_is_valid(self.bufnr) then
 				self:teardown()
 				return
@@ -111,7 +111,7 @@ function CursorMonitor.new(bufnr)
 			end
 
 			local current_content = get_buffer_content(self.bufnr)
-			if current_content == self.previous_content then
+			if current_content == self.previous_content and force then
 				vim.api.nvim_exec_autocmds("User", {
 					pattern = "TabTabCursorDiff",
 					data = {
@@ -119,7 +119,7 @@ function CursorMonitor.new(bufnr)
 						buffer_name = self.buffer_name,
 					},
 				})
-			elseif self.previous_content ~= "" then
+			elseif self.previous_content ~= "" and self.previous_content ~= current_content then
 				local diff = Differ.diff(self.previous_content, current_content, get_filename(bufnr))
 				-- vim.print(diff)
 				if diff ~= "" then
@@ -174,8 +174,9 @@ end
 
 ---Computes the diff between the previous and current content
 ---and emits it as a User autocommand
-function CursorMonitor:emit_diff()
-	self._emit_diff()
+---@param force boolean|nil
+function CursorMonitor:emit_diff(force)
+	self._emit_diff(force or false)
 	self.changes_counter = 0
 end
 
@@ -212,7 +213,7 @@ function CursorMonitor:setup_autocmds()
 			vim.print("InsertEnter")
 			self:get_buffer_content()
 			vim.defer_fn(function()
-				self:emit_diff()
+				self:emit_diff(true)
 			end, 150)
 		end,
 	})
@@ -225,7 +226,7 @@ function CursorMonitor:setup_autocmds()
 			if event.buf == self.bufnr then
 				self:get_buffer_content()
 				vim.defer_fn(function()
-					self:emit_diff()
+					self:emit_diff(true)
 				end, 150)
 			end
 		end,
@@ -237,7 +238,7 @@ function CursorMonitor:setup_autocmds()
 		buffer = bufnr,
 		callback = function()
 			self.changes_counter = self.changes_counter + 1
-			if self.changes_counter >= 10 then -- Emit diff after 10 changes
+			if self.changes_counter >= 5 then -- Emit diff after 5 changes
 				self:emit_diff()
 			end
 		end,
