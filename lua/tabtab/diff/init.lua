@@ -49,8 +49,14 @@ function M.create_word_diff(old_content, new_content)
 	vim.fn.writefile(vim.split(new_content, "\n"), new_file)
 
 	-- Get diff using system diff command with character-level granularity
-	-- The regex '.' treats each character as a word boundary
-	local diff = vim.fn.system({ "git", "diff", "--word-diff", "--word-diff-regex=.", old_file, new_file })
+	local diff = vim.fn.system({
+		"git",
+		"diff",
+		"--word-diff",
+		"--word-diff-regex=[[:alnum:]]+|[^[:alnum:][:space:]]",
+		old_file,
+		new_file,
+	})
 
 	-- Clean up temporary files
 	vim.fn.delete(old_file)
