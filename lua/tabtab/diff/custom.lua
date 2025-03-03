@@ -233,127 +233,96 @@ function M.compute_diff(old_content, new_content)
 	local lcs = longest_common_subsequence(old_lines, new_lines)
 
 	-- Convert LCS to a map for quick lookup
-	local lcs_map = {}
+	local lcs_map_a = {}
+	local lcs_map_b = {}
 	for _, pos in ipairs(lcs) do
-		lcs_map[pos.a_idx] = pos.b_idx
+		lcs_map_a[pos.a_idx] = pos.b_idx
+		lcs_map_b[pos.b_idx] = pos.a_idx
 	end
 
 	-- Generate the changes
 	local changes = {}
 	local old_idx, new_idx = 1, 1
 
-	local pending_deletions = {}
-	local pending_additions = {}
-
 	while old_idx <= #old_lines or new_idx <= #new_lines do
-		if old_idx <= #old_lines and lcs_map[old_idx] and vim.tbl_contains(vim.tbl_values(lcs_map), new_idx) then
-			if #pending_deletions > 0 then
-				for _, deletion in ipairs(pending_deletions) do
-					table.insert(changes, deletion)
-				end
-				pending_deletions = {}
-			end
-			if #pending_additions > 0 then
-				local content = table.concat(
-					vim.tbl_map(function(line)
-						return line.content
-					end, pending_additions),
-					"\n"
-				)
-				local addition = pending_additions[1]
-				addition.content = content
-				table.insert(changes, addition)
-				pending_additions = {}
-			end
-			-- This line is in both (context)
+		if old_idx <= #old_lines and lcs_map_a[old_idx] and lcs_map_b[new_idx] then
+			-- this token is part of LCS (context)
 			table.insert(changes, {
-				line = new_idx,
-				kind = "context",
-				content = new_lines[new_idx],
-			})
-			old_idx = old_idx + 1
-			new_idx = lcs_map[old_idx - 1] + 1
-		elseif old_idx <= #old_lines and not lcs_map[old_idx] then
-			if #pending_additions > 0 then
-				local content = table.concat(
-					vim.tbl_map(function(line)
-						return line.content
-					end, pending_additions),
-					"\n"
-				)
-				local addition = pending_additions[1]
-				addition.content = content
-				table.insert(changes, addition)
-			end
-			-- Line deleted
-			table.insert(pending_deletions, {
-				line = new_idx,
-				kind = "deletion",
 				content = old_lines[old_idx],
+				kind = "context",
+				line = new_idx,
 			})
+			new_idx = new_idx + 1
 			old_idx = old_idx + 1
-		elseif new_idx <= #new_lines then
-			if #pending_deletions > 0 then
-				local deletion = pending_deletions[1]
-				table.remove(pending_deletions, 1)
 
-				local content = new_lines[new_idx]
-				local wdiff = word_diff(deletion.content, content)
-				if #wdiff == 1 then
-					local wchange = wdiff[1]
-					if wchange.kind ~= "context" then
-						table.insert(changes, deletion)
-						table.insert(pending_additions, {
-							line = deletion.line,
-							kind = "addition",
-							content = content,
-						})
-					else
-						table.insert(changes, {
-							line = deletion.line,
-							kind = "context",
-							content = content,
-						})
-					end
-					new_idx = new_idx + 1
+		-- change
+		elseif
+			old_idx <= #old_lines
+			and new_idx <= #new_lines
+			and not lcs_map_a[old_idx]
+			and not lcs_map_b[new_idx]
+		then
+			-- we have lines in both sequences that aren't in any LCS
+			local wdiff = word_diff(old_lines[old_idx], new_lines[new_idx])
+			if #wdiff == 1 then
+				if wdiff[1].kind ~= "context" then
+					table.insert(changes, {
+						content = old_lines[old_idx],
+						kind = "deletion",
+						line = old_idx,
+					})
+					table.insert(changes, {
+						content = new_lines[new_idx],
+						kind = "addition",
+						line = new_idx,
+					})
 				else
 					table.insert(changes, {
-						line = deletion.line,
-						kind = "change",
-						content = content,
-						changes = wdiff,
+						content = old_lines[old_idx],
+						kind = "context",
+						line = new_idx,
 					})
-					new_idx = new_idx + 1
 				end
-			else
-				-- Collect consecutive additions
-				local start_idx = new_idx
-				local content = new_lines[new_idx]
-				new_idx = new_idx + 1
-
-				table.insert(pending_additions, {
-					line = start_idx,
-					kind = "addition",
-					content = content,
+			else -- if #wdiff == 1
+				table.insert(changes, {
+					content = new_lines[new_idx],
+					kind = "change",
+					line = new_idx,
+					changes = wdiff,
 				})
 			end
-		end
-	end
+			old_idx = old_idx + 1
+			new_idx = new_idx + 1
 
-	if #pending_additions > 0 then
-		local content = table.concat(
-			vim.tbl_map(function(line)
-				return line.content
-			end, pending_additions),
-			"\n"
-		)
-		local addition = pending_additions[1]
-		addition.content = content
-		table.insert(changes, addition)
-	end
-	if #pending_deletions > 0 then
-		for _, deletion in ipairs(pending_deletions) do
-			table.insert(changes, deletion)
+		-- deletion
+		elseif old_idx <= #old_lines and not lcs_map_a[old_idx] then
+			table.insert(changes, {
+				content = old_lines[old_idx],
+				kind = "deletion",
+				line = old_idx,
+			})
+			old_idx = old_idx + 1
+
+			-- addition
+		elseif new_idx <= #new_lines and not lcs_map_b[new_idx] then
+			local last_change = changes[#changes]
+			local current_content = nil
+			local line = new_idx
+			if last_change and last_change.kind == "addition" then
+				line = last_change.line
+				current_content = vim.split(last_change.content, "\n")
+				table.remove(changes, #changes)
+			else
+				current_content = {}
+			end
+			table.insert(current_content, new_lines[new_idx])
+
+			table.insert(changes, {
+				line = line,
+				content = table.concat(current_content, "\n"),
+				kind = "addition",
+			})
+			new_idx = new_idx + 1
 		end
 	end
 
