@@ -480,17 +480,6 @@ function M.hunk_contains_cursor(hunk, _)
 	return start_line <= cursor_line and cursor_line <= last_line
 end
 
----@param hunk WordDiffHunk
----@param _ number the buffer number
----@return boolean
-function M.word_diff_hunk_contains_cursor(hunk, _)
-	local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
-	local start_line = hunk.start_line
-	local last_line = start_line + #hunk.lines - 1
-
-	return start_line <= cursor_line and cursor_line <= last_line
-end
-
 ---Returns the version of the hunk before, and after the application
 ---of the changes
 ---@param hunk Hunk
