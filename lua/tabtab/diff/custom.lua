@@ -115,13 +115,43 @@ local function visual_width(str)
 	return width
 end
 
+---Find the common whitespace prefix between two strings
+---@param str1 string First string
+---@param str2 string Second string
+---@return string common_prefix The common whitespace prefix
+---@return string str1_trimmed The first string with common prefix removed
+---@return string str2_trimmed The second string with common prefix removed
+local function find_common_whitespace_prefix(str1, str2)
+	local i = 1
+	local prefix = ""
+
+	-- Find the common whitespace prefix
+	while i <= #str1 and i <= #str2 do
+		local char1 = str1:sub(i, i)
+		local char2 = str2:sub(i, i)
+
+		if char1 == char2 and (char1 == " " or char1 == "\t") then
+			prefix = prefix .. char1
+			i = i + 1
+		else
+			break
+		end
+	end
+
+	return prefix, str1:sub(#prefix + 1), str2:sub(#prefix + 1)
+end
+
 ---Performs word-level diffing between two strings
 ---@param old_str string The old string
 ---@param new_str string The new string
 ---@return WordDiffChange[] changes Array of word-level changes
 local function word_diff(old_str, new_str)
-	local old_tokens = tokenize(old_str)
-	local new_tokens = tokenize(new_str)
+	-- Handle common whitespace prefix
+	local common_prefix, old_trimmed, new_trimmed = find_common_whitespace_prefix(old_str, new_str)
+
+	-- Tokenize the trimmed strings
+	local old_tokens = tokenize(old_trimmed)
+	local new_tokens = tokenize(new_trimmed)
 
 	local lcs = longest_common_subsequence(old_tokens, new_tokens)
 
@@ -135,6 +165,17 @@ local function word_diff(old_str, new_str)
 
 	-- Generate the changes
 	local changes = {}
+
+	-- Add the common prefix as a context change if it exists
+	if #common_prefix > 0 then
+		table.insert(changes, {
+			content = common_prefix,
+			kind = "context",
+			visual_position = 0,
+			actual_position = 0,
+		})
+	end
+
 	local old_idx, new_idx = 1, 1
 
 	while old_idx <= #old_tokens or new_idx <= #new_tokens do
@@ -197,18 +238,33 @@ local function word_diff(old_str, new_str)
 	local merged_changes = {}
 	local current_change = nil
 
+	-- Track positions for changes
+	local visual_pos = 0
+	local actual_pos = 0
+
 	for _, change in ipairs(changes) do
 		if not current_change then
 			current_change = vim.deepcopy(change)
-			current_change.visual_position = 0
-			current_change.actual_position = 0
+			if not current_change.visual_position then
+				current_change.visual_position = visual_pos
+			end
+			if not current_change.actual_position then
+				current_change.actual_position = actual_pos
+			end
 		elseif current_change.kind == change.kind then
 			current_change.content = current_change.content .. change.content
 		else
 			table.insert(merged_changes, current_change)
+			visual_pos = current_change.visual_position + visual_width(current_change.content)
+			actual_pos = current_change.actual_position + #current_change.content
+
 			local next = vim.deepcopy(change)
-			next.visual_position = current_change.visual_position + visual_width(current_change.content)
-			next.actual_position = current_change.actual_position + #current_change.content
+			if not next.visual_position then
+				next.visual_position = visual_pos
+			end
+			if not next.actual_position then
+				next.actual_position = actual_pos
+			end
 
 			current_change = next
 		end
