@@ -82,9 +82,23 @@ local function tokenize(str)
 			table.insert(tokens, str:sub(word_start, word_end))
 			i = word_end + 1
 		else
-			-- Handle non-word character
-			table.insert(tokens, str:sub(i, i))
-			i = i + 1
+			-- Handle whitespace groups (spaces, tabs, newlines)
+			local char = str:sub(i, i)
+			if char == " " or char == "\t" or char == "\n" then
+				local ws_type = char
+				local ws_start = i
+
+				-- Find consecutive whitespace of the same type
+				while i <= #str and str:sub(i, i) == ws_type do
+					i = i + 1
+				end
+
+				table.insert(tokens, str:sub(ws_start, i - 1))
+			else
+				-- Handle other non-word characters
+				table.insert(tokens, char)
+				i = i + 1
+			end
 		end
 	end
 
@@ -147,11 +161,10 @@ end
 ---@return WordDiffChange[] changes Array of word-level changes
 local function word_diff(old_str, new_str)
 	-- Handle common whitespace prefix
-	local common_prefix, old_trimmed, new_trimmed = find_common_whitespace_prefix(old_str, new_str)
 
 	-- Tokenize the trimmed strings
-	local old_tokens = tokenize(old_trimmed)
-	local new_tokens = tokenize(new_trimmed)
+	local old_tokens = tokenize(old_str)
+	local new_tokens = tokenize(new_str)
 
 	local lcs = longest_common_subsequence(old_tokens, new_tokens)
 
@@ -165,16 +178,6 @@ local function word_diff(old_str, new_str)
 
 	-- Generate the changes
 	local changes = {}
-
-	-- Add the common prefix as a context change if it exists
-	if #common_prefix > 0 then
-		table.insert(changes, {
-			content = common_prefix,
-			kind = "context",
-			visual_position = 0,
-			actual_position = 0,
-		})
-	end
 
 	local old_idx, new_idx = 1, 1
 
@@ -257,6 +260,10 @@ local function word_diff(old_str, new_str)
 			table.insert(merged_changes, current_change)
 			visual_pos = current_change.visual_position + visual_width(current_change.content)
 			actual_pos = current_change.actual_position + #current_change.content
+
+			if current_change.kind == "deletion" and change.kind == "addition" then
+				actual_pos = actual_pos - 1
+			end
 
 			local next = vim.deepcopy(change)
 			if not next.visual_position then
