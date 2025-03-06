@@ -80,6 +80,32 @@ local function strip_markers(text)
 	return stripped
 end
 
+-- Apply indentation to each line of text
+---@param text string The text to indent
+---@param indent_info IndentInfo Information about the indentation to apply
+---@return string The indented text
+local function apply_indentation(text, indent_info)
+	if not indent_info then
+		return text
+	end
+
+	local lines = vim.split(text, "\n")
+	local indented_lines = {}
+
+	local indent_str = string.rep(indent_info.indent_char, indent_info.min_indent)
+
+	for _, line in ipairs(lines) do
+		if line:match("^%s*$") then
+			-- Keep empty lines as is
+			table.insert(indented_lines, line)
+		else
+			table.insert(indented_lines, indent_str .. line)
+		end
+	end
+
+	return table.concat(indented_lines, "\n")
+end
+
 ---Create a diff between the current scope and suggested text
 ---@param response string
 ---@param current_scope Scope
@@ -119,21 +145,15 @@ function M.process_response(response, current_scope)
 		return nil
 	end
 
-	-- vim.print("=== ORIGINAL ===")
-	-- for index, line in ipairs(vim.split(original, "\n")) do
-	-- 	vim.print(string.format("%d: %s", index, line))
-	-- end
-	--
-	-- vim.print("=== RESPONSE ===")
-	-- for index, line in ipairs(vim.split(suggestion, "\n")) do
-	-- 	vim.print(string.format("%d: %s", index, line))
-	-- end
+	-- Re-apply the original indentation to both the original and suggestion
+	-- before diffing to ensure consistent indentation
+	if current_scope.indent_info and current_scope.indent_info.min_indent > 0 then
+		original = apply_indentation(original, current_scope.indent_info)
+		suggestion = apply_indentation(suggestion, current_scope.indent_info)
+	end
 
 	-- Compute the diff between the current scope and the suggestion
 	local diff = Differ.diff(original, suggestion, current_scope.filename)
-
-	-- print("=== SUGGESTION ===")
-	-- print(diff)
 
 	-- Return the parsed hunks of the diff for easy processing
 	local hunks = Differ.parse(diff, current_scope.start_line)

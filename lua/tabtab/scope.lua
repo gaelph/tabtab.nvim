@@ -120,6 +120,20 @@ local function expand_scope(start_row, end_row, amount, bufnr)
 	return start_row, 1, end_row, end_col
 end
 
+-- Function to remove minimum indentation from lines
+local function remove_min_indent(lines, min_indent)
+	local result = {}
+	for _, line in ipairs(lines) do
+		if line:match("^%s*$") then
+			-- Keep empty lines as is
+			table.insert(result, line)
+		else
+			table.insert(result, line:sub(min_indent + 1))
+		end
+	end
+	return result
+end
+
 ---Get the current scope for a buffer
 ---@param bufnr number
 ---@return Scope|nil
@@ -226,28 +240,77 @@ function M.get_current_scope(bufnr)
 		end_col = end_context_col
 	end
 
-	--
-	-- vim.print(
-	-- 	"content start",
-	-- 	start_context_row,
-	-- 	start_context_col,
-	-- 	start_row,
-	-- 	start_col
-	-- )
-	-- vim.print("editable_start", start_row, start_col, cursor_row, cursor_col)
-	-- vim.print("editable_end", cursor_row, cursor_col, end_row, end_col)
-	-- vim.print("content end", end_row, end_col, end_context_row, end_context_col)
-
 	local start_content =
 		vim.api.nvim_buf_get_text(bufnr, start_context_row, start_context_col, start_row, start_col, {})
-
-	--
 
 	local editable_start = vim.api.nvim_buf_get_text(bufnr, start_row, start_col, cursor_row, cursor_col, {})
 
 	local editable_end = vim.api.nvim_buf_get_text(bufnr, cursor_row, cursor_col, end_row, end_col, {})
 
 	local end_content = vim.api.nvim_buf_get_text(bufnr, end_row, end_col, end_context_row, end_context_col, {})
+
+	-- Determine minimum indentation and indentation character
+	local all_lines = {}
+	for _, line in ipairs(start_content) do
+		if line:match("%S") then -- Only consider non-empty lines
+			table.insert(all_lines, line)
+		end
+	end
+	for _, line in ipairs(editable_start) do
+		if line:match("%S") then
+			table.insert(all_lines, line)
+		end
+	end
+	for _, line in ipairs(editable_end) do
+		if line:match("%S") then
+			table.insert(all_lines, line)
+		end
+	end
+	for _, line in ipairs(end_content) do
+		if line:match("%S") then
+			table.insert(all_lines, line)
+		end
+	end
+
+	local min_indent = math.huge
+	local indent_char = " " -- Default to space
+	local indent_width = 0
+
+	for _, line in ipairs(all_lines) do
+		if line:match("^%s*%S") then -- Line has content
+			local indent = line:match("^(%s*)")
+			if #indent < min_indent and #indent > 0 then
+				min_indent = #indent
+				-- Determine indent character (tab or space)
+				if indent:match("\t") then
+					indent_char = "\t"
+					indent_width = 1
+				else
+					indent_char = " "
+					-- Try to determine indent width (2, 4, etc.)
+					indent_width = #indent
+					for i = 1, #all_lines do
+						local other_indent = all_lines[i]:match("^(%s*)")
+						if #other_indent > 0 and #other_indent ~= #indent and #other_indent % #indent == 0 then
+							indent_width = #indent
+							break
+						end
+					end
+				end
+			end
+		end
+	end
+
+	-- If no indentation found or all lines start at column 0
+	if min_indent == math.huge then
+		min_indent = 0
+	end
+
+	-- Remove minimum indentation from all sections
+	local deindented_start_content = remove_min_indent(start_content, min_indent)
+	local deindented_editable_start = remove_min_indent(editable_start, min_indent)
+	local deindented_editable_end = remove_min_indent(editable_end, min_indent)
+	local deindented_end_content = remove_min_indent(end_content, min_indent)
 
 	local text = ""
 	if start_context_row == 0 then
@@ -256,28 +319,26 @@ function M.get_current_scope(bufnr)
 
 	text = text
 		.. string.format(
-			"%s%s%s%s%s%s",
-			table.concat(start_content, "\n"),
+			"%s%s%s%s%s%s%s",
+			table.concat(deindented_start_content, "\n"),
 			MARKERS.EDITABLE_REGION_START,
-			table.concat(editable_start, "\n"),
+			table.concat(deindented_editable_start, "\n"),
 			MARKERS.CURSOR,
-			table.concat(editable_end, "\n"),
+			table.concat(deindented_editable_end, "\n"),
 			MARKERS.EDITABLE_REGION_END,
-			table.concat(end_content, "\n")
+			table.concat(deindented_end_content, "\n")
 		)
-
-	-- Calculate cursor position relative to the start of the scope text
-	local cursor_pos = 0
-	for i = start_row, cursor_row - 1 do
-		cursor_pos = cursor_pos + #lines[i - start_row + 1] + 1 -- +1 for newline
-	end
-	cursor_pos = cursor_pos + cursor_col
 
 	return {
 		text = text,
 		filename = get_relative_path(bufnr),
 		start_line = start_context_row + 1, -- 1-based line number
 		end_line = end_context_row + 1, -- 1-based line number
+		indent_info = {
+			min_indent = min_indent,
+			indent_char = indent_char,
+			indent_width = indent_width,
+		},
 	}
 end
 
@@ -286,5 +347,11 @@ end
 ---@field filename string
 ---@field start_line number
 ---@field end_line number
+---@field indent_info IndentInfo Information about the original indentation
+
+---@class IndentInfo
+---@field min_indent number
+---@field indent_char string
+---@field indent_width number
 
 return M
