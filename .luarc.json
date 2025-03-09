@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/sumneko/vscode-lua/master/setting/schema.json",
+  "runtime": {
+    "version": "LuaJIT",
+    "path": ["lua/?.lua", "lua/?/init.lua"]
+  },
+  "workspace": {
+    "library": [
+      "${3rd}/luv/library",
+      "${3rd}/nvim-lua/library",
+      "${3rd}/plenary.nvim/lua",
+      "${workspaceFolder}/lua",
+      "$VIMRUNTIME/lua",
+      "$VIMRUNTIME/lua/vim/lsp"
+    ],
+    "checkThirdParty": false,
+    "maxPreload": 2000,
+    "preloadFileSize": 1000
+  },
+  "diagnostics": {
+    "globals": [
+      "vim",
+      "describe",
+      "it",
+      "before_each",
+      "after_each",
+      "teardown",
+      "pending",
+      "assert"
+    ],
+    "disable": ["trailing-space", "unused-local"]
+  },
+  "completion": {
+    "callSnippet": "Replace",
+    "keywordSnippet": "Replace",
+    "displayContext": 6
+  },
+  "hint": {
+    "enable": true,
+    "setType": true
+  },
+  "telemetry": {
+    "enable": false
+  }
+}
