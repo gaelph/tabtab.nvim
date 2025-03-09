@@ -42,7 +42,7 @@ local function get_node_at_cursor(bufnr)
 	return root:named_descendant_for_range(row, col, row, col)
 end
 
-local MAX_EDITABLE_REGION_TOKENS = 350
+local MAX_EDITABLE_REGION_TOKENS = 450
 local MAX_CONTEXT_TOKENS = 100
 local CHARACTER_TOKENS = 3
 
