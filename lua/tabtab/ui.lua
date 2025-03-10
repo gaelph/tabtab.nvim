@@ -11,7 +11,8 @@ local M = {
 }
 
 local ns_id = vim.api.nvim_create_namespace("tabtab_diff_display")
-local word_diff_ns_id = vim.api.nvim_create_namespace("tabtab_word_diff_display")
+local word_diff_ns_id =
+	vim.api.nvim_create_namespace("tabtab_word_diff_display")
 local ui_augroup = vim.api.nvim_create_augroup("TabTabUI", { clear = true })
 
 ---@class TabTabBackup
@@ -30,8 +31,10 @@ local ui_augroup = vim.api.nvim_create_augroup("TabTabUI", { clear = true })
 ---@param bufnr number
 ---@return TabTabBackup
 local function new_state(bufnr, hunk, hunks)
-	local conceal_level_bkp = vim.api.nvim_get_option_value("conceallevel", { scope = "local" })
-	local conceal_cursor_bkp = vim.api.nvim_get_option_value("concealcursor", { scope = "local" })
+	local conceal_level_bkp =
+		vim.api.nvim_get_option_value("conceallevel", { scope = "local" })
+	local conceal_cursor_bkp =
+		vim.api.nvim_get_option_value("concealcursor", { scope = "local" })
 	return {
 		buffer = bufnr,
 		buffer_name = vim.api.nvim_buf_get_name(bufnr),
@@ -80,25 +83,45 @@ local function restore_keymaps(bufnr)
 
 	-- Restore original key mappings
 	if state.original_maps.tab then
-		vim.keymap.set("n", M.keymaps.accept_or_jump, state.original_maps.tab, { buffer = bufnr })
+		vim.keymap.set(
+			"n",
+			M.keymaps.accept_or_jump,
+			state.original_maps.tab,
+			{ buffer = bufnr }
+		)
 	else
 		vim.keymap.del("n", M.keymaps.accept_or_jump, { buffer = bufnr })
 	end
 
 	if state.original_maps.tabi then
-		vim.keymap.set("i", M.keymaps.accept_or_jump, state.original_maps.tabi, { buffer = bufnr })
+		vim.keymap.set(
+			"i",
+			M.keymaps.accept_or_jump,
+			state.original_maps.tabi,
+			{ buffer = bufnr }
+		)
 	else
 		vim.keymap.del("i", M.keymaps.accept_or_jump, { buffer = bufnr })
 	end
 
 	if state.original_maps.esc then
-		vim.keymap.set("n", M.keymaps.reject, state.original_maps.esc, { buffer = bufnr })
+		vim.keymap.set(
+			"n",
+			M.keymaps.reject,
+			state.original_maps.esc,
+			{ buffer = bufnr }
+		)
 	else
 		vim.keymap.del("n", M.keymaps.reject, { buffer = bufnr })
 	end
 
 	if state.original_maps.esci then
-		vim.keymap.set("i", M.keymaps.reject, state.original_maps.esci, { buffer = bufnr })
+		vim.keymap.set(
+			"i",
+			M.keymaps.reject,
+			state.original_maps.esci,
+			{ buffer = bufnr }
+		)
 	else
 		vim.keymap.del("i", M.keymaps.reject, { buffer = bufnr })
 	end
@@ -113,7 +136,11 @@ function M.clear_diff_display(bufnr)
 	local conceal = state.conceal_level_bkp
 	vim.api.nvim_set_option_value("conceallevel", conceal, { scope = "local" })
 	local conceal_cursor_bkp = state.conceal_cursor_bkp
-	vim.api.nvim_set_option_value("concealcursor", conceal_cursor_bkp, { scope = "local" })
+	vim.api.nvim_set_option_value(
+		"concealcursor",
+		conceal_cursor_bkp,
+		{ scope = "local" }
+	)
 
 	-- Clear marks and restore original key mappings
 	for _, mark in ipairs(state.marks) do
@@ -163,7 +190,9 @@ local function set_extmark_over(bufnr, line, content, type)
 		-- then we only show the part of the suggestion that is after the cursor
 
 		-- get the content of the line under the cursor
-		local line_start = vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)[1]:sub(1, cursor_col) -- only from the start of the line to the cursor
+		local line_start = vim.api
+			.nvim_buf_get_lines(bufnr, line, line + 1, false)[1]
+			:sub(1, cursor_col) -- only from the start of the line to the cursor
 		-- get the content of the suggestion, from the start of the line to the cursor
 		local suggestion_start = content:sub(1, cursor_col)
 		-- compare the two!
@@ -226,7 +255,11 @@ local function close_completion_menu()
 	else
 		-- Fallback to traditional pum handling
 		if vim.fn.pumvisible() == 1 then
-			vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<C-e>", true, true, true), "n", true)
+			vim.api.nvim_feedkeys(
+				vim.api.nvim_replace_termcodes("<C-e>", true, true, true),
+				"n",
+				true
+			)
 		end
 	end
 end
@@ -303,8 +336,12 @@ local function highlight_hunk(bufnr, hunk)
 				pending_addition_line = math.min(pending_addition_line, lines)
 				pending_addition_line = math.max(pending_addition_line, 1)
 
-				local mark_id =
-					set_extmark_lines(bufnr, pending_addition_line, pending_addition, pending_addition_line == 1)
+				local mark_id = set_extmark_lines(
+					bufnr,
+					pending_addition_line,
+					pending_addition,
+					pending_addition_line == 1
+				)
 				table.insert(state.marks, mark_id)
 				pending_addition = {}
 				pending_addition_line = nil
@@ -328,7 +365,8 @@ local function highlight_hunk(bufnr, hunk)
 	-- Handle any remaining pending removal at the end
 	if #pending_removal > 0 then
 		for _, removal in ipairs(pending_removal) do
-			local ok, mark_id = pcall(set_extmark_over, bufnr, removal.line - 1, removal.content, "delete")
+			local ok, mark_id =
+				pcall(set_extmark_over, bufnr, removal.line - 1, removal.content, "delete")
 
 			if ok then
 				table.insert(state.marks, mark_id)
@@ -337,8 +375,13 @@ local function highlight_hunk(bufnr, hunk)
 	end
 	if pending_addition_line ~= nil and #pending_addition > 0 then
 		-- Transform pending_addition array into the required format for virt_lines
-		local ok, mark_id =
-			pcall(set_extmark_lines, bufnr, pending_addition_line, pending_addition, pending_addition_line == 1)
+		local ok, mark_id = pcall(
+			set_extmark_lines,
+			bufnr,
+			pending_addition_line,
+			pending_addition,
+			pending_addition_line == 1
+		)
 		if ok then
 			table.insert(state.marks, mark_id)
 
@@ -350,7 +393,12 @@ local function highlight_hunk(bufnr, hunk)
 
 	---@diagnostic disable-next-line: assign-type-mismatch
 	local mode = vim.api.nvim_get_mode().mode ---@type { mode: string, blocking: boolean }
-	if first_line_changed and first_line_changed ~= cursor_line and mode.mode ~= "i" and mode.blocking == false then
+	if
+		first_line_changed
+		and first_line_changed ~= cursor_line
+		and mode.mode ~= "i"
+		and mode.blocking == false
+	then
 		without_autocmds(function()
 			vim.api.nvim_win_set_cursor(0, { first_line_changed, 0 })
 			vim.cmd("normal! ^")
@@ -365,10 +413,10 @@ local function accept_hunk()
 		return
 	end
 
-	M.clear_diff_display(bufnr)
-	vim.api.nvim_clear_autocmds({ group = ui_augroup, buffer = bufnr })
+	if M.is_presenting then
+		M.clear_diff_display(bufnr)
+		vim.api.nvim_clear_autocmds({ group = ui_augroup, buffer = bufnr })
 
-	if M.hunk_contains_cursor(state.hunk, bufnr) then
 		vim.api.nvim_exec_autocmds("User", {
 			pattern = "TabTabAccept",
 			data = {
@@ -378,7 +426,15 @@ local function accept_hunk()
 				hunks = state.hunks,
 			},
 		})
+	elseif M.hunk_contains_cursor(state.hunk, bufnr) then
+		for _, mark in ipairs(state.marks) do
+			vim.api.nvim_buf_del_extmark(bufnr, ns_id, mark)
+		end
+
+		M.show_preview(state.hunk, state.hunks, bufnr)
 	else
+		M.clear_diff_display(bufnr)
+		vim.api.nvim_clear_autocmds({ group = ui_augroup, buffer = bufnr })
 		--- move cursor to the hunk
 		without_autocmds(function()
 			-- first, find the first line that has been modified
@@ -512,47 +568,48 @@ function M.show_hunk(hunk, hunks, bufnr)
 
 	backup_keymaps(bufnr)
 
-	if M.hunk_contains_cursor(hunk, bufnr) then
-		M.is_presenting = true
-		-- Close completion menu if nvim-cmp is available and active
-		close_completion_menu()
+	vim.schedule(function()
+		local cursor_line, _ = unpack(vim.api.nvim_win_get_cursor(0))
+		local mark_id = set_extmark_after(bufnr, cursor_line - 1)
 
-		local old_content, new_content = M.hunk_get_versions(hunk)
-
-		vim.print("=== OLD ===")
-		vim.print(old_content)
-		vim.print("=== NEW ===")
-		vim.print(new_content)
-
-		local wDiff = Differ.word_diff(old_content, new_content)
-		local plainDiff = Differ.format_diff(wDiff)
-		vim.print("=== WORD DIFF ===")
-		vim.print(plainDiff)
-
-		local old_start = hunk.start_line
-		local new_start = hunk.start_new_line
-
-		vim.schedule(function()
-			M.highlight_word_diff(wDiff, old_start, new_start, bufnr)
-		end)
-	else
-		vim.schedule(function()
-			local cursor_line, _ = unpack(vim.api.nvim_win_get_cursor(0))
-			local mark_id = set_extmark_after(bufnr, cursor_line - 1)
-
-			table.insert(states[bufnr].marks, mark_id)
-		end)
-	end
+		table.insert(states[bufnr].marks, mark_id)
+	end)
 
 	set_keymaps(bufnr)
 	setup_autocmds(bufnr, hunk)
+end
+
+function M.show_preview(hunk, hunks, bufnr)
+	M.is_presenting = true
+	-- Close completion menu if nvim-cmp is available and active
+	close_completion_menu()
+
+	local old_content, new_content = M.hunk_get_versions(hunk)
+
+	vim.print("=== OLD ===")
+	vim.print(old_content)
+	vim.print("=== NEW ===")
+	vim.print(new_content)
+
+	local wDiff = Differ.word_diff(old_content, new_content)
+	local plainDiff = Differ.format_diff(wDiff)
+	vim.print("=== WORD DIFF ===")
+	vim.print(plainDiff)
+
+	local old_start = hunk.start_line
+	local new_start = hunk.start_new_line
+
+	vim.schedule(function()
+		M.highlight_word_diff(wDiff, old_start, new_start, bufnr)
+	end)
 end
 
 ---Calculate the visual width of a string, accounting for tabs
 ---@param str string The string to calculate the width of
 ---@return number The visual width of the string
 local function visual_width(str)
-	local expandtab = vim.api.nvim_get_option_value("expandtab", { scope = "local" })
+	local expandtab =
+		vim.api.nvim_get_option_value("expandtab", { scope = "local" })
 	local tabstop = vim.api.nvim_get_option_value("tabstop", { scope = "local" })
 
 	if expandtab then
@@ -595,29 +652,31 @@ function M.highlight_word_diff(word_diff, old_start, new_start, bufnr)
 			goto continue
 		-- Whole line removal is an overlay over the existing text
 		elseif change.kind == "deletion" then
-			local mark_id = vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num, 0, {
-				virt_text = { { change.content, "DiffDelete" } },
-				virt_text_pos = "overlay",
-				hl_mode = "combine",
-				priority = 50,
-				ui_watched = true,
-			})
+			local mark_id =
+				vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num, 0, {
+					virt_text = { { change.content, "DiffDelete" } },
+					virt_text_pos = "overlay",
+					hl_mode = "combine",
+					priority = 50,
+					ui_watched = true,
+				})
 			table.insert(state.word_diff_marks, mark_id)
 
 		-- Whole line addition is virtual lines below the existing text
 		elseif change.kind == "addition" then
 			local above = line_num == 1 -- above the first line of the file
 
-			local mark_id = vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num - 1, 0, {
-				virt_lines = vim.tbl_map(function(line)
-					return { { line, "DiffAdd" } }
-				end, vim.split(change.content, "\n")),
-				virt_lines_above = above,
-				hl_mode = "combine",
-				strict = false,
-				priority = 60,
-				ui_watched = true,
-			})
+			local mark_id =
+				vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num - 1, 0, {
+					virt_lines = vim.tbl_map(function(line)
+						return { { line, "DiffAdd" } }
+					end, vim.split(change.content, "\n")),
+					virt_lines_above = above,
+					hl_mode = "combine",
+					strict = false,
+					priority = 60,
+					ui_watched = true,
+				})
 			table.insert(state.word_diff_marks, mark_id)
 
 		-- Word-level change is a combination of overlays and inline virtual text
@@ -631,20 +690,23 @@ function M.highlight_word_diff(word_diff, old_start, new_start, bufnr)
 				count = count - 1
 				-- context is skipped, but we need to track the visual width
 				if word_change.kind == "context" then
-					context_visual_width = context_visual_width + visual_width(word_change.content)
+					context_visual_width = context_visual_width
+						+ visual_width(word_change.content)
 					context_actual_width = context_actual_width + #word_change.content
 				-- deletion is an overlay over the existing text
 				elseif word_change.kind == "deletion" then
 					print("adding deletion at " .. word_change.visual_position)
-					local mark_id = vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num, 0, {
-						virt_text = { { word_change.content, "DiffDelete" } },
-						virt_text_pos = "overlay",
-						virt_text_win_col = word_change.visual_position,
-						hl_mode = "combine",
-						priority = 50,
-						ui_watched = true,
-					})
-					context_visual_width = context_visual_width + visual_width(word_change.content)
+					local mark_id =
+						vim.api.nvim_buf_set_extmark(bufnr, word_diff_ns_id, line_num, 0, {
+							virt_text = { { word_change.content, "DiffDelete" } },
+							virt_text_pos = "overlay",
+							virt_text_win_col = word_change.visual_position,
+							hl_mode = "combine",
+							priority = 50,
+							ui_watched = true,
+						})
+					context_visual_width = context_visual_width
+						+ visual_width(word_change.content)
 					context_actual_width = context_actual_width + #word_change.content
 					table.insert(state.word_diff_marks, mark_id)
 				-- addition is an inline virtual text
