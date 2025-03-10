@@ -3,4 +3,5 @@ return {
 	openai = require("tabtab.providers.openai"),
 	runpod = require("tabtab.providers.runpod"),
 	alter = require("tabtab.providers.alter"),
+	custom = require("tabtab.providers.custom"),
 }
