@@ -158,26 +158,35 @@ line4]]
 	it("Should do word diffing in this context", function()
 local old = [[    let url: URL
     let method: String
+    
 
     init(body: Codable? = nil, url: URL, method: String = "POST", customHeaders: [String: String] = [:]) {
         self.body = body
         self.url = url
-        self.method = method]]
+        self.method = method
+    }
+}]]
 
 local new = [[    let url: URL
     let method: String
-
+    let appVersion: String
+    
     init(body: Codable? = nil, url: URL, method: String = "POST", appVersion: String, queryStringParams: [String: String] = [:]) {
         self.body = body
         self.url = url
-        self.method = method]]
+        self.method = method
+    }
+}]]
 local expected = [[     let url: URL
      let method: String
++    let appVersion: String
  
 %    init(body: Codable? = nil, url: URL, method: String = "POST"{+, appVersion: String+}, [-customHeaders-]{+queryStringParams+}: [String: String] = [:]) {
          self.body = body
          self.url = url
-         self.method = method]]
+         self.method = method
+     }
+ }]]
 
 		local diff = diff_module.compute_diff(old, new)
 		local plain = diff_module.format_diff(diff)
