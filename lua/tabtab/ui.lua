@@ -451,7 +451,7 @@ local function accept_hunk()
 			vim.api.nvim_win_set_cursor(0, { line, 0 })
 			vim.cmd("normal! ^")
 			vim.schedule(function()
-				M.show_hunk(state.hunk, state.hunks, bufnr)
+				M.show_hunk(state.hunk, state.hunks, bufnr, true)
 			end)
 		end)
 	end
@@ -561,19 +561,28 @@ end
 ---@param hunk Hunk
 ---@param hunks Hunk[]
 ---@param bufnr number
-function M.show_hunk(hunk, hunks, bufnr)
+---@param preview? boolean Defaults to false
+function M.show_hunk(hunk, hunks, bufnr, preview)
+	if preview == nil then
+		preview = false
+	end
+
 	M.clear_diff_display(bufnr)
 	local state = new_state(bufnr, hunk, hunks)
 	states[bufnr] = state
 
 	backup_keymaps(bufnr)
 
-	vim.schedule(function()
-		local cursor_line, _ = unpack(vim.api.nvim_win_get_cursor(0))
-		local mark_id = set_extmark_after(bufnr, cursor_line - 1)
+	if preview then
+		M.show_preview(hunk, hunks, bufnr)
+	else
+		vim.schedule(function()
+			local cursor_line, _ = unpack(vim.api.nvim_win_get_cursor(0))
+			local mark_id = set_extmark_after(bufnr, cursor_line - 1)
 
-		table.insert(states[bufnr].marks, mark_id)
-	end)
+			table.insert(states[bufnr].marks, mark_id)
+		end)
+	end
 
 	set_keymaps(bufnr)
 	setup_autocmds(bufnr, hunk)
