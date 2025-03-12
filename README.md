@@ -156,3 +156,50 @@ Contributions are welcome! We're particularly interested in:
 ## License
 
 See [LICENSE](LICENSE)
+
+## Logging
+
+tabtab.nvim includes a comprehensive logging system to help with debugging and understanding the plugin's behavior:
+
+### Configuration
+
+```lua
+require('tabtab').setup({
+    -- Other configuration options...
+    
+    -- Logging configuration
+    log = {
+        -- Log level: "TRACE", "DEBUG", "INFO", "WARN", "ERROR", or "OFF"
+        level = "INFO",
+        
+        -- Optional custom log file path (defaults to $HOME/.local/share/nvim/tabtab.log)
+        file = nil,
+    },
+})
+```
+
+### Log Levels
+
+- **TRACE**: Most detailed logging, includes all operations
+- **DEBUG**: Detailed information useful for debugging
+- **INFO**: General information about normal operation (default)
+- **WARN**: Warnings and potential issues
+- **ERROR**: Error conditions that might affect functionality
+- **OFF**: Disable all logging
+
+### Commands
+
+tabtab.nvim provides commands to interact with logs:
+
+- `:TabTabLogs` - Open the log file in a new buffer
+- `:TabTabClearLogs` - Clear the log file
+
+### Log File Location
+
+By default, logs are stored at:
+```
+$HOME/.local/share/nvim/tabtab.log
+```
+
+You can customize this location in the configuration.
+

@@ -1,3 +1,5 @@
+local log = require("tabtab.log")
+
 ---@class CustomDiff
 local M = {}
 
@@ -109,7 +111,8 @@ end
 ---@param str string The string to calculate the width of
 ---@return number The visual width of the string
 local function visual_width(str)
-	local expandtab = vim.api.nvim_get_option_value("expandtab", { scope = "local" })
+	local expandtab =
+		vim.api.nvim_get_option_value("expandtab", { scope = "local" })
 	local tabstop = vim.api.nvim_get_option_value("tabstop", { scope = "local" })
 
 	if expandtab then
@@ -199,7 +202,8 @@ local function word_diff(old_str, new_str)
 			end
 
 			if old_idx > deletion_start then
-				local deletion_content = table.concat({ unpack(old_tokens, deletion_start, old_idx - 1) })
+				local deletion_content =
+					table.concat({ unpack(old_tokens, deletion_start, old_idx - 1) })
 				table.insert(changes, {
 					content = deletion_content,
 					kind = "deletion",
@@ -212,7 +216,8 @@ local function word_diff(old_str, new_str)
 			end
 
 			if new_idx > addition_start then
-				local addition_content = table.concat({ unpack(new_tokens, addition_start, new_idx - 1) })
+				local addition_content =
+					table.concat({ unpack(new_tokens, addition_start, new_idx - 1) })
 				table.insert(changes, {
 					content = addition_content,
 					kind = "addition",
@@ -258,7 +263,8 @@ local function word_diff(old_str, new_str)
 			current_change.content = current_change.content .. change.content
 		else
 			table.insert(merged_changes, current_change)
-			visual_pos = current_change.visual_position + visual_width(current_change.content)
+			visual_pos = current_change.visual_position
+				+ visual_width(current_change.content)
 			actual_pos = current_change.actual_position + #current_change.content
 
 			if current_change.kind == "deletion" and change.kind == "addition" then
@@ -289,6 +295,10 @@ end
 ---@param new_content string The new content
 ---@return DiffChange[] changes Array of line-level changes
 function M.compute_diff(old_content, new_content)
+	log.debug("Computing diff line-level diffing")
+	log.debug("Line-diff old content:\n" .. old_content)
+	log.debug("Line-diff new content:\n" .. new_content)
+
 	local old_lines = vim.split(old_content, "\n")
 	local new_lines = vim.split(new_content, "\n")
 
@@ -315,6 +325,14 @@ function M.compute_diff(old_content, new_content)
 				kind = "context",
 				line = new_idx,
 			})
+			log.debug(
+				"context at line "
+					.. old_idx
+					.. "/"
+					.. new_idx
+					.. ": "
+					.. old_lines[old_idx]
+			)
 			new_idx = new_idx + 1
 			old_idx = old_idx + 1
 
@@ -327,8 +345,22 @@ function M.compute_diff(old_content, new_content)
 		then
 			-- we have lines in both sequences that aren't in any LCS
 			local wdiff = word_diff(old_lines[old_idx], new_lines[new_idx])
+			log.debug(
+				"Line-diff word-diff for line "
+					.. old_idx
+					.. "/"
+					.. new_idx
+					.. ": "
+					.. vim.inspect(wdiff)
+			)
+
 			if #wdiff == 1 then
 				if wdiff[1].kind ~= "context" then
+					log.debug(
+						"single change in word-diff -> splitting into deletion and addition"
+					)
+					log.debug("deletion at line " .. old_idx .. ": " .. old_lines[old_idx])
+					log.debug("addition at line " .. new_idx .. ": " .. new_lines[new_idx])
 					table.insert(changes, {
 						content = old_lines[old_idx],
 						kind = "deletion",
@@ -340,6 +372,7 @@ function M.compute_diff(old_content, new_content)
 						line = new_idx,
 					})
 				else
+					log.debug("single change in word-diff -> only context, no need to split")
 					table.insert(changes, {
 						content = old_lines[old_idx],
 						kind = "context",
@@ -347,6 +380,7 @@ function M.compute_diff(old_content, new_content)
 					})
 				end
 			else -- if #wdiff == 1
+				log.debug("multiple changes in word-diff -> treat as changed line")
 				table.insert(changes, {
 					content = new_lines[new_idx],
 					kind = "change",
@@ -359,6 +393,14 @@ function M.compute_diff(old_content, new_content)
 
 		-- deletion
 		elseif old_idx <= #old_lines and not lcs_map_a[old_idx] then
+			log.debug(
+				"Line-diff deletion at line "
+					.. old_idx
+					.. "/"
+					.. new_idx
+					.. ": "
+					.. old_lines[old_idx]
+			)
 			table.insert(changes, {
 				content = old_lines[old_idx],
 				kind = "deletion",
@@ -371,6 +413,15 @@ function M.compute_diff(old_content, new_content)
 			local last_change = changes[#changes]
 			local current_content = nil
 			local line = new_idx
+			log.debug(
+				"Line-diff addition at line "
+					.. old_idx
+					.. "/"
+					.. new_idx
+					.. ": "
+					.. new_lines[new_idx]
+			)
+
 			if last_change and last_change.kind == "addition" then
 				line = last_change.line
 				current_content = vim.split(last_change.content, "\n")
@@ -378,7 +429,14 @@ function M.compute_diff(old_content, new_content)
 			else
 				current_content = {}
 			end
+
 			table.insert(current_content, new_lines[new_idx])
+			log.debug(
+				"Line-diff addition, merged into line "
+					.. line
+					.. ": "
+					.. table.concat(current_content, "\n")
+			)
 
 			table.insert(changes, {
 				line = line,
@@ -388,6 +446,8 @@ function M.compute_diff(old_content, new_content)
 			new_idx = new_idx + 1
 		end
 	end
+
+	log.debug("FINAL DIFF: " .. M.format_diff(changes))
 
 	return changes
 end

@@ -1,7 +1,7 @@
----@meta
+local log = require("tabtab.log")
 
-local MARKERS = require("tabtab.markers")
 local Differ = require("tabtab.diff")
+local MARKERS = require("tabtab.markers")
 ---@module 'tabtab.scope'
 ---@module 'tabtab.diff'
 
@@ -100,14 +100,14 @@ function M.process_response(response, current_scope)
 	cursor_line = math.max(cursor_line - current_scope.start_line + 1, 1)
 
 	if not original_excerpt then
-		vim.notify("Can't process response: Excerpt is nil", vim.log.levels.ERROR)
+		log.error("Can't process response: Excerpt is nil", vim.log.levels.ERROR)
 		return nil
 	end
 
 	-- Create the suggestion by replacing content between markers and removing them
 	local suggestion = create_suggestion(original_excerpt, response)
 	if not suggestion then
-		vim.notify("Could not process markers in response", vim.log.levels.ERROR)
+		log.warn("Could not process markers in response", vim.log.levels.ERROR)
 		return nil
 	end
 
@@ -115,7 +115,9 @@ function M.process_response(response, current_scope)
 	suggestion = strip_markers(suggestion)
 
 	if #suggestion / #original < 0.8 then
-		vim.print("!!! Suggestion removes more than 20% of the original content ! ABORT !!!")
+		log.warn(
+			"!!! Suggestion removes more than 20% of the original content ! ABORT !!!"
+		)
 		return nil
 	end
 
