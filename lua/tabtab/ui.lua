@@ -439,9 +439,9 @@ local function accept_hunk()
 		without_autocmds(function()
 			-- first, find the first line that has been modified
 			local line = state.hunk.start_new_line
-			for index, l in ipairs(state.hunk.lines) do
+			for index, line_content in ipairs(state.hunk.lines) do
 				-- get first char of the line to check it is a space
-				local first_char = vim.fn.getline(l):sub(1, 1)
+				local first_char = line_content:sub(1, 1)
 				if first_char ~= " " then
 					line = line + index
 					break
