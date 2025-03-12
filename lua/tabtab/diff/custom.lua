@@ -361,16 +361,29 @@ function M.compute_diff(old_content, new_content)
 					)
 					log.debug("deletion at line " .. old_idx .. ": " .. old_lines[old_idx])
 					log.debug("addition at line " .. new_idx .. ": " .. new_lines[new_idx])
-					table.insert(changes, {
-						content = old_lines[old_idx],
-						kind = "deletion",
-						line = old_idx,
-					})
-					table.insert(changes, {
-						content = new_lines[new_idx],
-						kind = "addition",
-						line = new_idx,
-					})
+					-- if this is a plain addition, and the next old line is removed,
+					-- hold the addtion off to attempt a change merge instead
+					if
+						wdiff[1].kind == "addition"
+						and old_idx + 1 <= #old_lines
+						and not lcs_map_a[old_idx + 1]
+					then
+						log.debug(
+							"Line-diff split: plain addition followed by removed line -> hold for change merge"
+						)
+						new_idx = new_idx - 1
+					else
+						table.insert(changes, {
+							content = old_lines[old_idx],
+							kind = "deletion",
+							line = old_idx,
+						})
+						table.insert(changes, {
+							content = new_lines[new_idx],
+							kind = "addition",
+							line = new_idx,
+						})
+					end
 				else
 					log.debug("single change in word-diff -> only context, no need to split")
 					table.insert(changes, {

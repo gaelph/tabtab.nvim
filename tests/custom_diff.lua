@@ -180,7 +180,7 @@ local new = [[    let url: URL
 local expected = [[     let url: URL
      let method: String
 +    let appVersion: String
- 
+     
 %    init(body: Codable? = nil, url: URL, method: String = "POST"{+, appVersion: String+}, [-customHeaders-]{+queryStringParams+}: [String: String] = [:]) {
          self.body = body
          self.url = url
