@@ -1,4 +1,5 @@
 local Diagnostic = require("tabtab.diagnostics")
+local log = require("tabtab.log")
 local M = {}
 
 M.system =
@@ -47,7 +48,11 @@ Code excerpt:
 	end
 
 	if request.diagnostics and #request.diagnostics > 0 then
-		message = string.format("%s\n\nDiagnostics:\n%s", message, Diagnostic.format_diagnostics(request.diagnostics))
+		local diagnostics_formatted =
+			Diagnostic.format_diagnostics(request.diagnostics)
+		log.debug("Diagnostics:\n" .. diagnostics_formatted)
+		message =
+			string.format("%s\n\nDiagnostics:\n%s", message, diagnostics_formatted)
 	end
 
 	return message
