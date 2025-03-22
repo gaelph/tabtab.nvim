@@ -1,5 +1,6 @@
 local Differ = require("tabtab.diff")
 local defer = require("tabtab.utils.defer")
+local log = require("tabtab.log")
 
 local M = {}
 
@@ -42,12 +43,14 @@ local function should_exclude(bufnr)
 
 	for _, ft in ipairs(default_config.exclude_filetypes) do
 		if filetype == ft then
+			log.debug(string.format("EXCLUDE buffer %d, filetype %s", bufnr, filetype))
 			return true
 		end
 	end
 
 	for _, bt in ipairs(default_config.exclude_buftypes) do
 		if buftype == bt then
+			log.debug(string.format("EXCLUDE buffer %d, buftype %s", bufnr, buftype))
 			return true
 		end
 	end
@@ -67,10 +70,10 @@ end
 ---@field bufnr number
 ---@field buffer_name string
 ---@field previous_content string
+---@field insert_start_content string  -- Content when insert mode was entered
 ---@field is_disabled boolean
----@field pause_cursor_hold boolean
 ---@field changes_counter number
----@field check_timer any
+---@field insert_timer any  -- Custom timer for insert mode pauses
 ---@field _emit_diff function
 ---@field timer any
 local CursorMonitor = {}
@@ -84,7 +87,8 @@ local function get_filename(bufnr)
 	-- Convert absolute path to relative path
 	local rel_path = vim.fn.fnamemodify(bufname, ":~:.")
 	if tab_cwd then
-		rel_path = vim.fn.fnamemodify(bufname, ":p"):gsub("^" .. vim.pesc(tab_cwd .. "/"), "")
+		rel_path =
+			vim.fn.fnamemodify(bufname, ":p"):gsub("^" .. vim.pesc(tab_cwd .. "/"), "")
 	end
 
 	return rel_path
@@ -102,7 +106,7 @@ function CursorMonitor.new(bufnr)
 		self.pause_cursor_hold = false
 
 		-- Function to emit diff
-		local function _emit_diff(force)
+		local function _emit_diff(force, no_update)
 			if not vim.api.nvim_buf_is_valid(self.bufnr) then
 				self:teardown()
 				return
@@ -112,18 +116,22 @@ function CursorMonitor.new(bufnr)
 				return
 			end
 
-			local current_content = get_buffer_content(self.bufnr)
+			local current_content = get_buffer_content(bufnr)
 			if current_content == self.previous_content and force then
 				vim.api.nvim_exec_autocmds("User", {
 					pattern = "TabTabCursorDiff",
 					data = {
 						bufnr = self.bufnr,
 						buffer_name = self.buffer_name,
+						no_update = no_update,
 					},
 				})
-			elseif self.previous_content ~= "" and self.previous_content ~= current_content then
-				local diff = Differ.diff(self.previous_content, current_content, get_filename(bufnr))
-				-- vim.print(diff)
+			elseif
+				self.previous_content ~= "" and self.previous_content ~= current_content
+			then
+				local diff =
+					Differ.diff(self.previous_content, current_content, get_filename(bufnr))
+				-- log.debug(diff)
 				if diff ~= "" then
 					-- Emit a User autocommand with the diff data
 					vim.api.nvim_exec_autocmds("User", {
@@ -132,29 +140,33 @@ function CursorMonitor.new(bufnr)
 							diff = diff,
 							bufnr = bufnr,
 							buffer_name = self.buffer_name,
+							no_update = no_update,
 						},
 					})
 				end
 			end
-			self.previous_content = current_content
+			if not no_update then
+				self.previous_content = get_buffer_content(self.bufnr)
+			end
 		end -- _emit_diff
 
-		local emit_diff, timer = defer.debounce_trailing(_emit_diff, 500)
+		local emit_diff, timer = defer.debounce_trailing(_emit_diff, 250) -- Reduced from 500ms
 		self._emit_diff = emit_diff
 		self.timer = timer
 		self.changes_counter = 0
+		self.insert_start_content = "" -- Initialize insert_start_content
 
 		-- Create timer for periodic checks (every 2 seconds)
-		self.check_timer = vim.loop.new_timer()
-		self.check_timer:start(
-			200,
-			200,
-			vim.schedule_wrap(function()
-				if self.changes_counter > 0 then
-					self:emit_diff()
-				end
-			end)
-		)
+		-- self.check_timer = vim.loop.new_timer()
+		-- self.check_timer:start(
+		-- 	200,
+		-- 	200,
+		-- 	vim.schedule_wrap(function()
+		-- 		if self.changes_counter > 0 then
+		-- 			self:emit_diff()
+		-- 		end
+		-- 	end)
+		-- )
 
 		self:setup_autocmds()
 
@@ -177,8 +189,9 @@ end
 ---Computes the diff between the previous and current content
 ---and emits it as a User autocommand
 ---@param force boolean|nil
-function CursorMonitor:emit_diff(force)
-	self._emit_diff(force or false)
+---@param no_update boolean|nil
+function CursorMonitor:emit_diff(force, no_update)
+	self._emit_diff(force or false, no_update)
 	self.changes_counter = 0
 end
 
@@ -195,7 +208,14 @@ end
 ---Removes the instance from the instances table
 ---and deletes the associated autocommand group
 function CursorMonitor:teardown()
-	local group = vim.api.nvim_create_augroup("TabTabCursor" .. self.bufnr, { clear = true })
+	local group =
+		vim.api.nvim_create_augroup("TabTabCursor" .. self.bufnr, { clear = true })
+
+	-- Clean up any pending insert timer
+	if self.insert_timer then
+		vim.fn.timer_stop(self.insert_timer)
+		self.insert_timer = nil
+	end
 
 	vim.api.nvim_del_augroup_by_id(group)
 	M.instances[self.bufnr] = nil
@@ -204,68 +224,75 @@ end
 -- Setup autocmds for this instance
 function CursorMonitor:setup_autocmds()
 	local bufnr = self.bufnr
+	local group =
+		vim.api.nvim_create_augroup("TabTabCursor" .. bufnr, { clear = true })
 
-	local group = vim.api.nvim_create_augroup("TabTabCursor" .. bufnr, { clear = true })
-
-	-- Store content before entering insert mode
-	vim.api.nvim_create_autocmd({ "CursorHoldI" }, {
-		group = group,
-		buffer = bufnr,
-		callback = function(event)
-			if self.pause_cursor_hold then
-				return
-			end
-			vim.print(event.event)
-			-- self:get_buffer_content()
-			vim.defer_fn(function()
-				self:emit_diff(true)
-			end, 150)
-		end,
-	})
-
-	-- Store content before entering insert mode
+	-- Store content when entering insert mode
 	vim.api.nvim_create_autocmd({ "ModeChanged" }, {
 		group = group,
 		pattern = "*:i",
 		callback = function(event)
 			if event.buf == self.bufnr then
-				vim.print(event.event)
-				self.pause_cursor_hold = true
-				-- self:get_buffer_content()
+				log.debug(event.event)
+				-- Store the buffer content at insert mode start
+				self.insert_start_content = get_buffer_content(self.bufnr)
+				self.previous_content = self.insert_start_content
+				-- Emit diff immediately when entering insert mode
 				vim.defer_fn(function()
-					self:emit_diff(true)
-				end, 150)
-
-				vim.defer_fn(function()
-					self.pause_cursor_hold = false
-				end, 1150)
+					self:emit_diff(true, false)
+				end, 80)
 			end
 		end,
 	})
 
-	-- Track all text changes
+	-- Track typing in insert mode and reset the timer
+	vim.api.nvim_create_autocmd({ "TextChangedI" }, {
+		group = group,
+		buffer = bufnr,
+		callback = function()
+			-- Cancel any existing timer
+			if self.insert_timer then
+				vim.fn.timer_stop(self.insert_timer)
+				self.insert_timer = nil
+			end
+
+			-- Start a new timer that will emit a diff after 300ms of no typing
+			self.insert_timer = vim.fn.timer_start(300, function()
+				-- Compare current content with insert_start_content
+				local current_content = get_buffer_content(self.bufnr)
+				if current_content ~= self.insert_start_content then
+					self:emit_diff(true, true) -- Don't update previous_content
+				end
+			end)
+		end,
+	})
+
+	-- Emit diff when leaving insert mode
+	vim.api.nvim_create_autocmd("InsertLeave", {
+		group = group,
+		buffer = bufnr,
+		callback = function()
+			-- Cancel any pending insert timer
+			if self.insert_timer then
+				vim.fn.timer_stop(self.insert_timer)
+				self.insert_timer = nil
+			end
+
+			-- Emit diff immediately
+			self:emit_diff(true, false) -- Will update previous_content
+		end,
+	})
+
+	-- Track all text changes in normal mode
 	vim.api.nvim_create_autocmd({ "TextChanged" }, {
 		group = group,
 		buffer = bufnr,
 		callback = function(event)
-			vim.print(event.event)
-			vim.defer_fn(function()
-				local mode = vim.api.nvim_get_mode()
-				if mode.mode == "n" and not mode.blocking then
-					vim.print("TextChanged")
-					self:emit_diff()
-				end
-			end, 100)
-		end,
-	})
-
-	-- Store content before executing commands
-	vim.api.nvim_create_autocmd({ "CmdlineEnter" }, {
-		group = group,
-		buffer = bufnr,
-		callback = function(event)
-			vim.print(event.event)
-			self:get_buffer_content()
+			local mode = vim.api.nvim_get_mode()
+			if mode.mode == "n" then
+				log.debug(event.event)
+				self:_emit_diff(false, false)
+			end
 		end,
 	})
 end
@@ -288,6 +315,9 @@ function M.setup(config)
 
 			-- Skip if we already have an instance or if buffer should be excluded
 			if M.instances[bufnr] or should_exclude(bufnr) then
+				if M.instances[bufnr] then
+					log.debug("Buffer %d already has an instance, skipping", bufnr)
+				end
 				return
 			end
 
@@ -301,11 +331,18 @@ function M.setup(config)
 		group = group,
 		callback = function(args)
 			-- Delete the buffer-specific augroup
-			pcall(vim.api.nvim_del_augroup_by_name, "TabTabCursor" .. args.buf)
+			xpcall(vim.api.nvim_del_augroup_by_name, function(err)
+				log.error(debug.traceback(err))
+			end, "TabTabCursor" .. args.buf)
 			if M.instances[args.buf] ~= nil then
 				local instance = M.instances[args.buf]
 				instance.timer:close()
-				instance.check_timer:close()
+
+				-- Clean up any pending insert timer
+				if instance.insert_timer then
+					vim.fn.timer_stop(instance.insert_timer)
+					instance.insert_timer = nil
+				end
 
 				-- Remove the instance
 				M.instances[args.buf] = nil
