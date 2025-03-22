@@ -146,7 +146,9 @@ function M.debounce_trailing(fn, ms, first)
 			local argc = select("#", ...)
 
 			timer:start(ms, 0, function()
-				pcall(vim.schedule_wrap(fn), unpack(argv, 1, argc))
+				xpcall(vim.schedule_wrap(fn), function(err)
+					vim.notify(debug.traceback(err), vim.log.levels.ERROR)
+				end, unpack(argv, 1, argc))
 			end)
 		end
 	else
@@ -159,7 +161,9 @@ function M.debounce_trailing(fn, ms, first)
 			argc = argc or select("#", ...)
 
 			timer:start(ms, 0, function()
-				pcall(vim.schedule_wrap(fn), unpack(argv, 1, argc))
+				xpcall(vim.schedule_wrap(fn), function(err)
+					vim.notifiy(debug.traceback(err), vim.log.levels.ERROR)
+				end, unpack(argv, 1, argc))
 			end)
 		end
 	end

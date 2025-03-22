@@ -1,4 +1,5 @@
 local MARKERS = require("tabtab.markers")
+local log = require("tabtab.log")
 
 local M = {}
 
@@ -10,7 +11,8 @@ local function get_relative_path(bufnr)
 	-- Convert absolute path to relative path
 	local rel_path = vim.fn.fnamemodify(bufname, ":~:.")
 	if tab_cwd then
-		rel_path = vim.fn.fnamemodify(bufname, ":p"):gsub("^" .. vim.pesc(tab_cwd .. "/"), "")
+		rel_path =
+			vim.fn.fnamemodify(bufname, ":p"):gsub("^" .. vim.pesc(tab_cwd .. "/"), "")
 	end
 	return rel_path
 end
@@ -29,6 +31,9 @@ local function get_node_at_cursor(bufnr)
 	-- Get parser and tree
 	local ok, parser = pcall(vim.treesitter.get_parser, bufnr)
 	if not ok or not parser then
+		log.error("Failed to get parser for buffer " .. bufnr)
+		log.error(debug.traceback(parser))
+
 		return nil
 	end
 
@@ -135,7 +140,8 @@ function M.get_current_scope(bufnr)
 		final_line = lines[#lines]
 	end
 
-	local start_row, start_col, end_row, end_col = 0, 1, #lines - 1, 1 + #final_line
+	local start_row, start_col, end_row, end_col =
+		0, 1, #lines - 1, 1 + #final_line
 
 	-- Get current cursor position
 	local cursor_row, cursor_col = unpack(vim.api.nvim_win_get_cursor(0))
@@ -143,14 +149,16 @@ function M.get_current_scope(bufnr)
 
 	local scope_node = get_scope_node(node, bufnr)
 	if not scope_node then
-		start_row, start_col, end_row, end_col = expand_scope(cursor_row, cursor_row, MAX_EDITABLE_REGION_TOKENS, bufnr)
+		start_row, start_col, end_row, end_col =
+			expand_scope(cursor_row, cursor_row, MAX_EDITABLE_REGION_TOKENS, bufnr)
 	else
 		start_row, start_col, end_row, end_col = scope_node:range()
 	end
 	-- Ensure start_col is non-negative and valid
 	start_col = math.max(0, start_col)
 
-	local start_context_row, start_context_col, end_context_row, end_context_col = 0, 0, #lines - 1, 1 + #final_line
+	local start_context_row, start_context_col, end_context_row, end_context_col =
+		0, 0, #lines - 1, 1 + #final_line
 
 	-- get context node
 	start_context_row, start_context_col, end_context_row, end_context_col =
@@ -211,7 +219,8 @@ function M.get_current_scope(bufnr)
 	end
 	if cursor_row > end_row then
 		cursor_row = end_row
-		local line = vim.api.nvim_buf_get_lines(bufnr, cursor_row, cursor_row + 1, false)[1]
+		local line =
+			vim.api.nvim_buf_get_lines(bufnr, cursor_row, cursor_row + 1, false)[1]
 		if cursor_col > #line then
 			cursor_col = #line
 		end
@@ -238,16 +247,37 @@ function M.get_current_scope(bufnr)
 	-- vim.print("editable_end", cursor_row, cursor_col, end_row, end_col)
 	-- vim.print("content end", end_row, end_col, end_context_row, end_context_col)
 
-	local start_content =
-		vim.api.nvim_buf_get_text(bufnr, start_context_row, start_context_col, start_row, start_col, {})
+	local start_content = vim.api.nvim_buf_get_text(
+		bufnr,
+		start_context_row,
+		start_context_col,
+		start_row,
+		start_col,
+		{}
+	)
 
 	--
 
-	local editable_start = vim.api.nvim_buf_get_text(bufnr, start_row, start_col, cursor_row, cursor_col, {})
+	local editable_start = vim.api.nvim_buf_get_text(
+		bufnr,
+		start_row,
+		start_col,
+		cursor_row,
+		cursor_col,
+		{}
+	)
 
-	local editable_end = vim.api.nvim_buf_get_text(bufnr, cursor_row, cursor_col, end_row, end_col, {})
+	local editable_end =
+		vim.api.nvim_buf_get_text(bufnr, cursor_row, cursor_col, end_row, end_col, {})
 
-	local end_content = vim.api.nvim_buf_get_text(bufnr, end_row, end_col, end_context_row, end_context_col, {})
+	local end_content = vim.api.nvim_buf_get_text(
+		bufnr,
+		end_row,
+		end_col,
+		end_context_row,
+		end_context_col,
+		{}
+	)
 
 	local text = ""
 	if start_context_row == 0 then

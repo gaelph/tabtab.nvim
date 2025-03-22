@@ -1,4 +1,5 @@
 local Differ = require("tabtab.diff")
+local log = require("tabtab.log")
 ---@class TabTab
 ---@field keymaps TabTabKeymapOptions
 ---@field is_presenting boolean
@@ -370,6 +371,11 @@ local function highlight_hunk(bufnr, hunk)
 
 			if ok then
 				table.insert(state.marks, mark_id)
+			else
+				log.error(
+					"Failed to highlight word diff for buffer " .. bufnr .. ": ",
+					mark_id
+				)
 			end
 		end
 	end
@@ -388,6 +394,11 @@ local function highlight_hunk(bufnr, hunk)
 			pending_addition = {}
 			pending_addition_line = nil
 			states[bufnr] = state
+		else
+			log.error(
+				"Failed to highlight word diff for buffer " .. bufnr .. ": ",
+				mark_id
+			)
 		end
 	end
 
@@ -434,7 +445,9 @@ local function accept_hunk()
 		M.show_preview(state.hunk, state.hunks, bufnr)
 	else
 		M.clear_diff_display(bufnr)
-		vim.api.nvim_clear_autocmds({ group = ui_augroup, buffer = bufnr })
+		xpcall(vim.api.nvim_clear_autocmds, function(err)
+			log.error(err)
+		end, { group = ui_augroup, buffer = bufnr })
 		--- move cursor to the hunk
 		without_autocmds(function()
 			-- first, find the first line that has been modified
@@ -448,7 +461,9 @@ local function accept_hunk()
 				end
 			end
 
-			vim.api.nvim_win_set_cursor(0, { line, 0 })
+			xpcall(vim.api.nvim_win_set_cursor, function(err)
+				log.error(err)
+			end, 0, { line, 0 })
 			vim.cmd("normal! ^")
 			vim.schedule(function()
 				M.show_hunk(state.hunk, state.hunks, bufnr, true)

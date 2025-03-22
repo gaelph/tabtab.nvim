@@ -1,5 +1,7 @@
 ---@meta
 ---@module 'tabtab.provider.tabtab'
+---
+local log = require("tabtab.log")
 
 ---@type table<string, TabTabProvider>
 local providers = require("tabtab.providers")
@@ -67,7 +69,7 @@ function TabTabClient:shutdown_current_job()
 	if self.current_job then
 		if not self.current_job.is_terminated then
 			self.current_job:kill(9) -- Send SIGKILL
-			vim.print("Previous job cancelled")
+			log.debug("Previous job cancelled")
 		end
 		self.current_job = nil
 	end
@@ -102,15 +104,15 @@ function TabTabClient:chat_completion(request, callback)
 	-- table.insert(curl_cmd, "-k") -- insecure, equivalent to curl's -k option
 	table.insert(curl_cmd, url)
 
-	-- vim.print(curl_cmd)
+	-- log.debug(curl_cmd)
 
 	-- Add payload
 	table.insert(curl_cmd, "-d")
 	table.insert(curl_cmd, req.body)
 
-	vim.print("Calling " .. url)
-	-- vim.print("---BODY---")
-	-- vim.print(req.body)
+	log.debug("Calling " .. url)
+	-- log.debug("---BODY---")
+	-- log.debug(req.body)
 
 	-- Create the job
 	self.current_job = vim.system(curl_cmd, {
@@ -122,7 +124,7 @@ function TabTabClient:chat_completion(request, callback)
 			print("error", obj.code, obj.stderr)
 			callback(nil, obj.stderr or "Request failed")
 		end
-		vim.print("Call done")
+		log.debug("Call done")
 	end)
 end
 
@@ -133,10 +135,28 @@ end
 function TabTabClient:complete(request, callback)
 	self:shutdown_current_job()
 
-	-- vim.print("=== MESSAGE ===")
-	-- for index, line in ipairs(vim.split(message, "\n")) do
-	-- 	vim.print(string.format("%d: %s", index, line))
-	-- end
+	log.debug("=== REQUEST ===")
+	log.debug("--- edits ---")
+	for _, edit in ipairs(request.edits) do
+		log.debug(edit.filename)
+		log.debug(edit.diff)
+	end
+	log.debug("--- diagonstics ---")
+	for _, diag in ipairs(request.diagnostics) do
+		log.debug(
+			string.format(
+				"%s:%d:%d [%s] %s",
+				diag.filename,
+				diag.lnum,
+				diag.col,
+				diag.severity,
+				diag.message
+			)
+		)
+	end
+	log.debug("--- excerpt ---")
+	log.debug(request.excerpt.filename)
+	log.debug(request.excerpt.text)
 
 	self:chat_completion(request, function(response, error)
 		if error ~= nil then

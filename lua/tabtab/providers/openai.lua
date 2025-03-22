@@ -1,6 +1,7 @@
-local TabTabProvider = require("tabtab.providers.tabtab")
 local Diagnostic = require("tabtab.diagnostics")
 local Prompt = require("tabtab.prompt")
+local TabTabProvider = require("tabtab.providers.tabtab")
+local log = require("tabtab.log")
 
 ---A provider for the OpenAI API
 ---@class TabTabOpenAIProvider
@@ -54,6 +55,7 @@ end
 function TabTabOpenAIProvider:parse_response(response)
 	local ok, result = pcall(vim.fn.json_decode, response.body)
 	if not ok then
+		log.error("Failed to parse response: ", response.body)
 		return nil
 	end
 
