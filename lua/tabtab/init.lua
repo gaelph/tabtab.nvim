@@ -102,18 +102,16 @@ M.config = vim.deepcopy(default_config)
 M.client = nil
 M.change_history = {}
 
----Adds a change to the change history
----Appends the change to the end of the history
----Limits the history to the last 10 changes
----@param change string
-function M.add_change(change)
-	log.debug("Adding change to history:", change)
-	local lines = vim.split(change, "\n")
+---Turns a plain text diff into a change object
+---@param diff_string string
+---@return {filename: string, diff: string}
+function M.diff_to_change(diff_string)
+	local lines = vim.split(diff_string, "\n")
 	local filename = lines[1]
 	table.remove(lines, 1)
 	local diff = table.concat(lines, "\n")
 
-	table.insert(M.change_history, {
+	return {
 		filename = filename,
 		diff = string.format(
 			[[```diff
@@ -121,7 +119,18 @@ function M.add_change(change)
 ```]],
 			diff
 		),
-	})
+	}
+end
+
+---Adds a change to the change history
+---Appends the change to the end of the history
+---Limits the history to the last 10 changes
+---@param change string
+function M.add_change(change)
+	log.debug("Adding change to history:", change)
+
+	table.insert(M.change_history, M.diff_to_change(change))
+
 	while #M.change_history > M.config.history_size do
 		table.remove(M.change_history, 1)
 	end
@@ -146,6 +155,7 @@ local function setup_event_handlers()
 			local diff = args.data.diff
 			local bufnr = args.data.bufnr
 			local buffer_name = args.data.buffer_name
+			local no_update = args.data.no_update
 
 			log.debug("Received cursor diff event for buffer:", buffer_name)
 
@@ -159,9 +169,13 @@ local function setup_event_handlers()
 					current_scope.end_line
 				)
 
+				local edits = vim.tbl_map(function(change)
+					return change
+				end, M.change_history)
+
 				-- If there is a pending change, add the diff to the message
 				if diff then
-					M.add_change(diff)
+					table.insert(edits, M.diff_to_change(diff))
 				end
 
 				local diagnostics = Diagnostic.get_diagnostics(
@@ -175,10 +189,14 @@ local function setup_event_handlers()
 
 				---@type TabTabInferenceRequest
 				local request = {
-					edits = M.change_history,
+					edits = edits,
 					excerpt = current_scope,
 					diagnostics = diagnostics,
 				}
+
+				if diff and not no_update then
+					M.add_change(diff)
+				end
 
 				log.info(
 					"Sending completion request to provider:",
@@ -206,6 +224,10 @@ local function setup_event_handlers()
 						log.warn("Scope has changed, discarding suggestion")
 						vim.print("Suggestion discarded because scope has changed")
 						return
+					end
+
+					if ui.is_presenting then
+						log.info("UI is already presenting, ignoring diff")
 					end
 
 					if hunks == nil or #hunks == 0 then

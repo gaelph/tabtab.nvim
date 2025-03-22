@@ -103,7 +103,7 @@ function CursorMonitor.new(bufnr)
 		self.buffer_name = vim.api.nvim_buf_get_name(bufnr)
 		self.previous_content = get_buffer_content(bufnr)
 		self.is_disabled = false
-		self.pause_cursor_hold = false
+		self.insert_start_content = "" -- Initialize insert_start_content
 
 		-- Function to emit diff
 		local function _emit_diff(force, no_update)
