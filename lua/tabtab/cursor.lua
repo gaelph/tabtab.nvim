@@ -250,6 +250,11 @@ function CursorMonitor:setup_autocmds()
 		group = group,
 		buffer = bufnr,
 		callback = function()
+			if should_exclude(self.bufnr) then
+				self:teardown()
+				return
+			end
+
 			-- Cancel any existing timer
 			if self.insert_timer then
 				vim.fn.timer_stop(self.insert_timer)

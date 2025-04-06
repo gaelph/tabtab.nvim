@@ -120,7 +120,10 @@ local function expand_scope(start_row, end_row, amount, bufnr)
 		end_row = end_row + 1
 	end
 
-	local end_col = #lines[end_row]
+	local end_col = 1
+	if lines[end_row] then
+		end_col = #lines[end_row]
+	end
 
 	return start_row, 1, end_row, end_col
 end
