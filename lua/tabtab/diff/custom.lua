@@ -218,32 +218,6 @@ local function word_diff(old_str, new_str)
 			if new_idx > addition_start then
 				local addition_content =
 					table.concat({ unpack(new_tokens, addition_start, new_idx - 1) })
-
-				-- if addition is a continuation of the previous deletion, remove the
-				-- previous deletion and the not changed part of the addition
-				if
-					changes[#changes]
-					and changes[#changes].kind == "deletion"
-					and vim.startswith(addition_content, changes[#changes].content)
-				then
-					-- remove the part that is common between the two
-					-- and re-add it as a context
-					local removed = changes[#changes].content
-					table.remove(changes, #changes)
-					local context = changes[#changes]
-					if context then
-						context.content = context.content .. removed
-						changes[#changes] = context
-					else
-						table.insert(changes, {
-							content = removed,
-							kind = "context",
-						})
-					end
-
-					addition_content = addition_content:sub(#removed + 1)
-				end
-
 				table.insert(changes, {
 					content = addition_content,
 					kind = "addition",
@@ -260,33 +234,6 @@ local function word_diff(old_str, new_str)
 		elseif new_idx <= #new_tokens then
 			-- Only new tokens left (additions)
 			local addition_content = table.concat({ unpack(new_tokens, new_idx) })
-
-			-- if addition is a continuation of the previous deletion, remove the
-			-- previous deletion and the not changed part of the addition
-			if
-				changes[#changes]
-				and changes[#changes].kind == "deletion"
-				and vim.startswith(addition_content, changes[#changes].content)
-			then
-				-- remove the part that is common between the two
-				-- and re-add it as a context
-				local removed = changes[#changes].content
-				table.remove(changes, #changes)
-				local context = changes[#changes]
-				if context then
-					context.content = context.content .. removed
-					changes[#changes] = context
-				else
-					table.insert(changes, {
-						content = removed,
-						kind = "context",
-					})
-				end
-
-				-- remove the common part from the addition
-				addition_content = addition_content:sub(#removed + 1)
-			end
-
 			table.insert(changes, {
 				content = addition_content,
 				kind = "addition",
