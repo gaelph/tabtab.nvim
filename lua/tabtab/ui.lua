@@ -610,15 +610,8 @@ function M.show_preview(hunk, hunks, bufnr)
 
 	local old_content, new_content = M.hunk_get_versions(hunk)
 
-	vim.print("=== OLD ===")
-	vim.print(old_content)
-	vim.print("=== NEW ===")
-	vim.print(new_content)
-
 	local wDiff = Differ.word_diff(old_content, new_content)
 	local plainDiff = Differ.format_diff(wDiff)
-	vim.print("=== WORD DIFF ===")
-	vim.print(plainDiff)
 
 	local old_start = hunk.start_line
 	local new_start = hunk.start_new_line
