@@ -222,7 +222,8 @@ local function word_diff(old_str, new_str)
 				-- if addition is a continuation of the previous deletion, remove the
 				-- previous deletion and the not changed part of the addition
 				if
-					changes[#changes].kind == "deletion"
+					changes[#changes]
+					and changes[#changes].kind == "deletion"
 					and vim.startswith(addition_content, changes[#changes].content)
 				then
 					local removed = changes[#changes].content
@@ -250,7 +251,8 @@ local function word_diff(old_str, new_str)
 			-- if addition is a continuation of the previous deletion, remove the
 			-- previous deletion and the not changed part of the addition
 			if
-				changes[#changes].kind == "deletion"
+				changes[#changes]
+				and changes[#changes].kind == "deletion"
 				and vim.startswith(addition_content, changes[#changes].content)
 			then
 				local removed = changes[#changes].content
