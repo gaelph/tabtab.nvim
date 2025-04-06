@@ -733,7 +733,7 @@ function M.highlight_word_diff(word_diff, old_start, new_start, bufnr)
 						bufnr,
 						word_diff_ns_id,
 						line_num,
-						word_change.actual_position + 1,
+						word_change.actual_position,
 						{
 							virt_text = { { word_change.content, "DiffAdd" } },
 							virt_text_pos = "inline",
