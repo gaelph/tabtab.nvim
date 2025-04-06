@@ -220,11 +220,11 @@ local function setup_event_handlers()
 						return
 					end
 
-					if old_scope.text ~= current_scope.text then
-						log.warn("Scope has changed, discarding suggestion")
-						vim.print("Suggestion discarded because scope has changed")
-						return
-					end
+					-- if old_scope.text ~= current_scope.text then
+					-- 	log.warn("Scope has changed, discarding suggestion")
+					-- 	vim.print("Suggestion discarded because scope has changed")
+					-- 	return
+					-- end
 
 					if ui.is_presenting then
 						log.info("UI is already presenting, ignoring diff")
