@@ -119,7 +119,7 @@ function TabTabClient:chat_completion(request, callback)
 		text = true, -- Ensure text mode output
 	}, function(obj)
 		if obj.code == 0 and obj.stdout then
-			callback({ body = obj.stdout }, nil)
+			callback({ body = obj.stdout }, obj.stderr)
 		else
 			print("error", obj.code, obj.stderr)
 			callback(nil, obj.stderr or "Request failed")
@@ -159,7 +159,7 @@ function TabTabClient:complete(request, callback)
 	log.debug(request.excerpt.text)
 
 	self:chat_completion(request, function(response, error)
-		if error ~= nil then
+		if error ~= nil and error ~= "" then
 			print("error", error)
 			self:shutdown_current_job()
 			callback(nil)

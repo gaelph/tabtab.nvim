@@ -67,6 +67,8 @@ function TabTabOpenAIProvider:parse_response(response)
 		and result.choices[1].message.content
 	then
 		return result.choices[1].message.content
+	else
+		log.error("invalid response: ", vim.inspect(result))
 	end
 end
 
