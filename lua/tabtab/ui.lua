@@ -592,10 +592,12 @@ function M.show_hunk(hunk, hunks, bufnr, preview)
 		M.show_preview(hunk, hunks, bufnr)
 	else
 		vim.schedule(function()
-			local cursor_line, _ = unpack(vim.api.nvim_win_get_cursor(0))
-			local mark_id = set_extmark_after(bufnr, cursor_line - 1)
+			if states[bufnr] ~= nil then
+				local cursor_line, _ = unpack(vim.api.nvim_win_get_cursor(0))
+				local mark_id = set_extmark_after(bufnr, cursor_line - 1)
 
-			table.insert(states[bufnr].marks, mark_id)
+				table.insert(states[bufnr].marks, mark_id)
+			end
 		end)
 	end
 
