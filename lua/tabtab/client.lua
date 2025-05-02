@@ -156,6 +156,7 @@ function TabTabClient:complete(request, callback)
 	end
 	log.debug("--- excerpt ---")
 	log.debug(request.excerpt.filename)
+	log.debug(request.excerpt.filetype)
 	log.debug(request.excerpt.text)
 
 	self:chat_completion(request, function(response, error)

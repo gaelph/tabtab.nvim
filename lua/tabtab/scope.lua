@@ -149,6 +149,7 @@ function M.get_current_scope(bufnr)
 	-- Get current cursor position
 	local cursor_row, cursor_col = unpack(vim.api.nvim_win_get_cursor(0))
 	cursor_row = cursor_row - 1 -- Convert to 0-based indexing
+	cursor_col = cursor_col + 1 -- Convert to 1-based indexing
 
 	local scope_node = get_scope_node(node, bufnr)
 	if not scope_node then
@@ -294,18 +295,28 @@ function M.get_current_scope(bufnr)
 	end
 	cursor_pos = cursor_pos + cursor_col
 
+	local filetype = vim.api.nvim_get_option_value("filetype", { buf = bufnr })
+	local indent_char = vim.bo.expandtab and "space" or "tab"
+	local indent_size = vim.bo.expandtab and vim.bo.tabstop or 1
+
 	return {
 		text = text,
+		filetype = filetype,
 		filename = get_relative_path(bufnr),
-		start_line = start_context_row + 1, -- 1-based line number
-		end_line = end_context_row + 1, -- 1-based line number
+		start_line = start_context_row + 1, --1-based line number
+		end_line = end_context_row + 1, --1-based line number
+		indent_char = indent_char, -- character used for indentation
+		indent_size = indent_size, -- number of spaces or tabs used for indentation
 	}
 end
 
 ---@class Scope
 ---@field text string
+---@field filetype string|nil
 ---@field filename string
 ---@field start_line number
 ---@field end_line number
+---@field indent_char "tab"|"space"
+---@field indent_size integer
 
 return M

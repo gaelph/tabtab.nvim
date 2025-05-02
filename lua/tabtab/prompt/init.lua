@@ -15,12 +15,18 @@ function M.format_prompt(request)
 	local message = string.format(
 		[[
 Code excerpt:
+```%s
+%s
+%s
 ```
-%s
-%s
-```]],
+Indentation:
+%d %s
+]],
+		request.excerpt.filetype,
 		request.excerpt.filename,
-		request.excerpt.text
+		request.excerpt.text,
+		request.excerpt.indent_size,
+		request.excerpt.indent_char
 	)
 
 	if request.edits and #request.edits > 0 then
