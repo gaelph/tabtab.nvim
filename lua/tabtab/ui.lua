@@ -1,5 +1,6 @@
 local Differ = require("tabtab.diff")
 local log = require("tabtab.log")
+
 ---@class TabTab
 ---@field keymaps TabTabKeymapOptions
 ---@field is_presenting boolean
@@ -520,7 +521,7 @@ local function setup_autocmds(bufnr, hunk)
 			buffer = bufnr,
 			once = true,
 			callback = function(event)
-				vim.print("Clearing hunk for buffer " .. bufnr)
+				log.debug("Clearing hunk for buffer " .. bufnr)
 				-- Clear the hunk or perform any cleanup here
 				local buf = event.buf
 				M.clear_diff_display(buf)
@@ -532,7 +533,7 @@ local function setup_autocmds(bufnr, hunk)
 			group = ui_augroup,
 			buffer = bufnr,
 			callback = function()
-				vim.print("Clearing hunk for buffer " .. bufnr)
+				log.debug("Clearing hunk for buffer " .. bufnr)
 				M.clear_diff_display(bufnr)
 				highlight_hunk(bufnr, hunk)
 			end,
@@ -657,7 +658,7 @@ function M.highlight_word_diff(word_diff, old_start, new_start, bufnr)
 	local state = states[bufnr]
 	if not state then
 		-- likely the state was cleared before the function was called
-		vim.print("Can't highlight word diff: No state found for buffer " .. bufnr)
+		log.debug("Can't highlight word diff: No state found for buffer " .. bufnr)
 		return
 	end
 

@@ -252,6 +252,7 @@ local function word_diff(old_str, new_str)
 
 	for _, change in ipairs(changes) do
 		if not current_change then
+			-- initial change of the line
 			current_change = vim.deepcopy(change)
 			if not current_change.visual_position then
 				current_change.visual_position = visual_pos
@@ -260,12 +261,23 @@ local function word_diff(old_str, new_str)
 				current_change.actual_position = actual_pos
 			end
 		elseif current_change.kind == change.kind then
+			-- same kind of change, merge the content
 			current_change.content = current_change.content .. change.content
 		else
+			-- different kind of change, caclulet the positions for the virtual text
 			table.insert(merged_changes, current_change)
 			visual_pos = current_change.visual_position
 				+ visual_width(current_change.content)
 			actual_pos = current_change.actual_position + #current_change.content
+
+			-- if the current change is an addition, it is shown as virtual text
+			-- so the actual position for the next change should not be adjusted
+			-- to include its length
+			-- if current_change.kind ~= "addition" then
+			-- 	visual_pos = visual_pos + visual_width(current_change.content) + 1
+			-- else
+			-- 	visual_pos = visual_pos - 1
+			-- end
 
 			if current_change.kind == "deletion" and change.kind == "addition" then
 				actual_pos = actual_pos - 1

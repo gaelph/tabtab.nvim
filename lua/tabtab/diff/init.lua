@@ -1,5 +1,6 @@
-local parser = require("tabtab.diff.parser")
 local custom_diff = require("tabtab.diff.custom")
+local log = require("tabtab.log")
+local parser = require("tabtab.diff.parser")
 
 ---@class Differ
 local M = {}
@@ -70,7 +71,8 @@ end
 local function move_to_line(bufnr, line_number, start)
 	_G.__tabtab_no_clear = true -- will have to be reset to false after the cursor moves
 
-	local line = vim.api.nvim_buf_get_lines(bufnr, line_number - 1, line_number, false)[1]
+	local line =
+		vim.api.nvim_buf_get_lines(bufnr, line_number - 1, line_number, false)[1]
 
 	if not line then
 		return
@@ -88,9 +90,12 @@ local function move_to_line(bufnr, line_number, start)
 	end
 
 	without_autocmds(function()
-		local ok, error = pcall(vim.api.nvim_win_set_cursor, 0, { line_number + 1, col })
+		local ok, error =
+			pcall(vim.api.nvim_win_set_cursor, 0, { line_number + 1, col })
 		if not ok and error then
-			vim.print("Moving cursor to " .. line_number + 1 .. ":" .. col .. " failed: " .. error)
+			log.error(
+				"Moving cursor to " .. line_number + 1 .. ":" .. col .. " failed: " .. error
+			)
 		end
 	end)
 end
@@ -116,7 +121,13 @@ function M.apply_hunk(hunk, bufnr)
 				move_to_line(bufnr, current_line - 1, true)
 			elseif prefix == "+" then
 				-- Insert new line at current position
-				vim.api.nvim_buf_set_lines(bufnr, current_line - 1, current_line - 1, false, { content })
+				vim.api.nvim_buf_set_lines(
+					bufnr,
+					current_line - 1,
+					current_line - 1,
+					false,
+					{ content }
+				)
 				move_to_line(bufnr, current_line - 1, false)
 				current_line = current_line + 1
 			end
@@ -160,7 +171,12 @@ function M.apply_word_diff(word_diff, bufnr)
 		-- Apply changes line by line
 		for line_num, changes in pairs(line_changes) do
 			-- Get the current line content
-			local current_line = vim.api.nvim_buf_get_lines(bufnr, line_num, line_num + 1, false)[1] or ""
+			local current_line = vim.api.nvim_buf_get_lines(
+				bufnr,
+				line_num,
+				line_num + 1,
+				false
+			)[1] or ""
 			local new_line = ""
 			local has_changes = false
 
@@ -177,7 +193,13 @@ function M.apply_word_diff(word_diff, bufnr)
 
 			-- Only update the line if there were actual changes
 			if has_changes then
-				vim.api.nvim_buf_set_lines(bufnr, line_num, line_num + 1, false, { new_line })
+				vim.api.nvim_buf_set_lines(
+					bufnr,
+					line_num,
+					line_num + 1,
+					false,
+					{ new_line }
+				)
 			end
 		end
 

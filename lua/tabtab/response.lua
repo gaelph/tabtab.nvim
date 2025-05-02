@@ -121,21 +121,8 @@ function M.process_response(response, current_scope)
 		return nil
 	end
 
-	-- vim.print("=== ORIGINAL ===")
-	-- for index, line in ipairs(vim.split(original, "\n")) do
-	-- 	vim.print(string.format("%d: %s", index, line))
-	-- end
-	--
-	-- vim.print("=== RESPONSE ===")
-	-- for index, line in ipairs(vim.split(suggestion, "\n")) do
-	-- 	vim.print(string.format("%d: %s", index, line))
-	-- end
-
 	-- Compute the diff between the current scope and the suggestion
 	local diff = Differ.diff(original, suggestion, current_scope.filename)
-
-	-- print("=== SUGGESTION ===")
-	-- print(diff)
 
 	-- Return the parsed hunks of the diff for easy processing
 	local hunks = Differ.parse(diff, current_scope.start_line)

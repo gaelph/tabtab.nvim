@@ -1,5 +1,6 @@
-local TabTabProvider = require("tabtab.providers.tabtab")
 local Prompt = require("tabtab.prompt")
+local TabTabProvider = require("tabtab.providers.tabtab")
+local log = require("tabtab.log")
 
 ---A provider for the OpenAI API
 ---@class TabTabOpenAIProvider
@@ -67,15 +68,13 @@ function TabTabAlterProvider:parse_partial_completion(response)
 
 		local ok, result = pcall(vim.fn.json_decode, json)
 		if not ok then
-			vim.print("error", result, json)
+			log.error("error", result, json)
 			goto continue
 		end
 
 		if not result then
 			return nil, "error no result"
 		end
-
-		-- vim.print("result", result)
 
 		if
 			result.finish_reason
@@ -100,7 +99,8 @@ function TabTabAlterProvider:parse_partial_completion(response)
 				return finished_result, nil
 			end
 			if token then
-				self.pending_completions[result.id] = self.pending_completions[result.id] .. token
+				self.pending_completions[result.id] = self.pending_completions[result.id]
+					.. token
 			else
 				goto continue
 				-- local completed = self.pending_completions[result.id]

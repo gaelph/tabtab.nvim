@@ -238,18 +238,6 @@ function M.get_current_scope(bufnr)
 		end_col = end_context_col
 	end
 
-	--
-	-- vim.print(
-	-- 	"content start",
-	-- 	start_context_row,
-	-- 	start_context_col,
-	-- 	start_row,
-	-- 	start_col
-	-- )
-	-- vim.print("editable_start", start_row, start_col, cursor_row, cursor_col)
-	-- vim.print("editable_end", cursor_row, cursor_col, end_row, end_col)
-	-- vim.print("content end", end_row, end_col, end_context_row, end_context_col)
-
 	local start_content = vim.api.nvim_buf_get_text(
 		bufnr,
 		start_context_row,

@@ -33,11 +33,10 @@ and the additions
 ]]
 
 		local diff = diff_module.compute_diff(old_content, new_content)
-		-- vim.print(diff)
-		
+
 		-- Our implementation now splits multi-line additions into separate additions
 		assert.are.same(8, #diff)
-		
+
 		local change = diff[1]
 		assert.are.same(1, change.line)
 		assert.are.same("context", change.kind)
@@ -105,7 +104,6 @@ and the additions
 		)
 	end)
 
-
 	it("should diff a line addition", function()
 		local old = [[line1
 line2
@@ -119,19 +117,18 @@ line4]]
 
 		local diff = diff_module.compute_diff(old, new)
 		local plain = diff_module.format_diff(diff)
-		
+
 		local expected = [[ line1
 %[-line2-]{+line1.5+}
 -
 +line3
 +line3.5
  line4]]
-		
+
 		assert.are.same(expected, plain)
 	end)
 
 	it("should do a more complex diff", function()
-
 		local old = [[    let test: String
     let customHeaders: [String: String] = [:]
 
@@ -144,19 +141,19 @@ line4]]
 
 		local diff = diff_module.compute_diff(old, new)
 		local plain = diff_module.format_diff(diff)
-		
+
 		local expected = [[     let test: String
 %    let[- customHeaders:-] [-[String-]{+host+}: String[-] = [:]-]
 -
 +    let appVersion: String = "1.0"
 +    let queryString: [String: String] = [:]
      let timeout: TimeInterval = 10]]
-		
+
 		assert.are.same(expected, plain)
 	end)
 
 	it("Should do word diffing in this context", function()
-local old = [[    let url: URL
+		local old = [[    let url: URL
     let method: String
     
 
@@ -167,7 +164,7 @@ local old = [[    let url: URL
     }
 }]]
 
-local new = [[    let url: URL
+		local new = [[    let url: URL
     let method: String
     let appVersion: String
     
@@ -177,7 +174,7 @@ local new = [[    let url: URL
         self.method = method
     }
 }]]
-local expected = [[     let url: URL
+		local expected = [[     let url: URL
      let method: String
 +    let appVersion: String
      
@@ -194,15 +191,15 @@ local expected = [[     let url: URL
 		assert.are.same(expected, plain)
 	end)
 
-  it("should diff an autocomand", function()
-    local old = [[vim.api.nvim_create_autocmd({ "CursorHoldI" }, {
+	it("should diff an autocomand", function()
+		local old = [[vim.api.nvim_create_autocmd({ "CursorHoldI" }, {
 buffer = bufnr,
 callback = function()
 
   M.do_something()
 end
     })]]
-    local new = [[vim.api.nvim_create_autocmd({ "CursorHoldI" }, {
+		local new = [[vim.api.nvim_create_autocmd({ "CursorHoldI" }, {
 buffer = bufnr,
 callback = function(event)
   print(event.event)
@@ -210,7 +207,7 @@ callback = function(event)
   M.do_something()
 end
     })]]
-    local expected = [[ vim.api.nvim_create_autocmd({ "CursorHoldI" }, {
+		local expected = [[ vim.api.nvim_create_autocmd({ "CursorHoldI" }, {
  buffer = bufnr,
 %callback = function({+event+})
 +  print(event.event)
@@ -219,11 +216,11 @@ end
  end
      })]]
 
-    local diff = diff_module.compute_diff(old, new)
-    local plain = diff_module.format_diff(diff)
+		local diff = diff_module.compute_diff(old, new)
+		local plain = diff_module.format_diff(diff)
 
-    assert.are.same(expected, plain)
-  end)
+		assert.are.same(expected, plain)
+	end)
 
 	it("should print the diff", function()
 		local old_content = [[this is a line for context
@@ -249,7 +246,7 @@ and the additions]]
 		local diff = diff_module.compute_diff(old_content, new_content)
 
 		local diff_string = diff_module.format_diff(diff)
-		
+
 		assert.are.same(
 			[[ this is a line for context
 %this line [-will-]{+has+} [-be-]{+been+} replaced

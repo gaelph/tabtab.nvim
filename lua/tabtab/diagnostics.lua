@@ -9,14 +9,13 @@ local M = {}
 ---@field severity string
 ---@field filename string
 
-
 --- Gets the filename with extension from a buffer number
 ---@param bufnr number
 ---@return string filename The filename with extension
 function M.get_filename(bufnr)
-    local full_path = vim.api.nvim_buf_get_name(bufnr)
-    local filename = vim.fn.fnamemodify(full_path, ":t")
-    return filename
+	local full_path = vim.api.nvim_buf_get_name(bufnr)
+	local filename = vim.fn.fnamemodify(full_path, ":t")
+	return filename
 end
 
 --- This module is used to gather diagnostics for a given buffer
@@ -26,14 +25,13 @@ end
 ---@param line_end number
 ---@return Diagnostic[]
 function M.get_diagnostics(bufnr, line_start, line_end)
-	-- vim.print("Getting diagnostics for " .. bufnr, line_start, line_end)
 	local diagnostics = vim.diagnostic.get(bufnr, {
 		severity = { min = vim.diagnostic.severity.WARN },
 	})
 
 	local usable_diagnostics = {}
 
-  local filename = M.get_filename(bufnr)
+	local filename = M.get_filename(bufnr)
 
 	for _, diagnostic in ipairs(diagnostics) do
 		if diagnostic.lnum >= line_start and diagnostic.lnum <= line_end then
@@ -43,8 +41,8 @@ function M.get_diagnostics(bufnr, line_start, line_end)
 				message = diagnostic.message,
 				source = diagnostic.source,
 				code = diagnostic.code,
-        severity = diagnostic.severity,
-        filename = filename
+				severity = diagnostic.severity,
+				filename = filename,
 			})
 		end
 	end
@@ -58,11 +56,10 @@ end
 function M.format_diagnostics(diagnostics)
 	local result = {}
 	for _, diagnostic in ipairs(diagnostics) do
-
 		-- Map vim.diagnostic severity to text representation
 		local severity = "info"
 		local diag_severity = diagnostic.severity
-		
+
 		if diag_severity == vim.diagnostic.severity.ERROR then
 			severity = "error"
 		elseif diag_severity == vim.diagnostic.severity.WARN then

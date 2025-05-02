@@ -56,7 +56,7 @@ local default_config = {
 		api_key = os.getenv("GROQ_API_KEY"),
 		api_base = "https://api.groq.com/openai",
 		defaults = {
-			model = "qwen-2.5-coder-32b",
+			model = "meta-llama/llama-4-maverick-17b-128e-instruct",
 			temperature = 0.3,
 			max_tokens = 4096,
 		},
@@ -216,7 +216,6 @@ local function setup_event_handlers()
 
 					if current_scope == nil then
 						log.warn("No scope found after response")
-						vim.print("No scope found")
 						return
 					end
 
@@ -232,7 +231,6 @@ local function setup_event_handlers()
 
 					if hunks == nil or #hunks == 0 then
 						log.warn("No hunks to apply")
-						vim.print("No hunks to apply")
 						return
 					end
 
