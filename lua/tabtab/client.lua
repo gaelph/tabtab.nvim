@@ -174,7 +174,6 @@ function TabTabClient:complete(request, callback)
 		end
 
 		if self.provider == nil then
-			print("no provider")
 			self:shutdown_current_job()
 			callback(nil)
 			return
@@ -184,7 +183,6 @@ function TabTabClient:complete(request, callback)
 			vim.schedule(function()
 				local result, err = self.provider:parse_partial_completion(response)
 				if err ~= nil then
-					print("error", err)
 					self:shutdown_current_job()
 					callback(nil)
 					return
@@ -199,7 +197,6 @@ function TabTabClient:complete(request, callback)
 			vim.schedule(function()
 				local result = self.provider:parse_response(response)
 				if result == nil then
-					print("no response from provider", response.body)
 					self:shutdown_current_job()
 					callback(nil)
 					return
