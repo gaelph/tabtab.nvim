@@ -25,7 +25,7 @@ function TabTabAlterProvider.new(opts)
 	instance.api_path = "/v1/chat/completions"
 	instance.defaults = defaults
 	instance.streams = true
-	instance.pending_completions = {}
+	instance.pending_completion = ""
 
 	return instance
 end
@@ -47,12 +47,13 @@ function TabTabAlterProvider:make_request_body(request, opts)
 		model = opts.model,
 		temperature = opts.temperature,
 		max_tokens = opts.max_tokens,
-		stream = false,
+		stream = true,
 	}
 
 	return vim.fn.json_encode(body)
 end
 
+---
 function TabTabAlterProvider:parse_partial_completion(response)
 	if not response then
 		return nil, "error no response"
@@ -62,45 +63,51 @@ function TabTabAlterProvider:parse_partial_completion(response)
 	end
 
 	local lines = vim.split(response.body, "\n")
+	log.debug(lines)
 
 	for _, line in ipairs(lines) do
-		local json = line:sub(#"data: ")
+		local json = line
+		json = json:sub(#"data: ")
+
+		if #json == 0 then
+			goto continue
+		end
+
+		if vim.endswith(line, "[DONE]") then
+			local result = self.pending_completion
+			self.pending_completion = ""
+			return result, nil
+		end
 
 		local ok, result = pcall(vim.fn.json_decode, json)
 		if not ok then
 			log.error("error", result, json)
+			vim.notify_once(string.format("error: %s", result), vim.log.levels.ERROR)
 			goto continue
 		end
 
 		if not result then
+			vim.notify("No result", vim.log.levels.ERROR)
 			return nil, "error no result"
 		end
 
-		if
-			result.finish_reason
-			and result.finish_reason == "stop"
-			and result.id
-			and self.pending_completions[result.id]
-		then
-			local finished_result = self.pending_completions[result.id]
-			self.pending_completions[result.id] = nil
+		if result.finish_reason and result.finish_reason == "stop" then
+			local finished_result = self.pending_completion
+			self.pending_completion = ""
 			return finished_result, nil
 		end
 
 		if result.finish_reason == nil then
-			if not self.pending_completions[result.id] then
-				self.pending_completions[result.id] = ""
-			end
 			local token = result.choices[1].delta.content
 			local finish_reason = result.choices[1].finish_reason
 			if finish_reason == "stop" then
-				local finished_result = self.pending_completions[result.id]
-				self.pending_completions[result.id] = nil
+				local finished_result = self.pending_completion
+				self.pending_completion = ""
 				return finished_result, nil
 			end
 			if token then
-				self.pending_completions[result.id] = self.pending_completions[result.id]
-					.. token
+				self.pending_completion = self.pending_completion .. token
+				log.debug(self.pending_completion)
 			else
 				goto continue
 				-- local completed = self.pending_completions[result.id]
@@ -114,9 +121,14 @@ function TabTabAlterProvider:parse_partial_completion(response)
 	return nil, "error decoding stream"
 end
 
+--- The role of this function is to parse the full response from the API.
+--- @param response table The full response from the API.
+--- @return string|nil The completion string, or nil if parsing failed.
 function TabTabAlterProvider:parse_response(response)
 	local ok, result = pcall(vim.fn.json_decode, response.body)
 	if not ok then
+		vim.notify_once("Error parsing response", vim.log.levels.ERROR)
+		log.error(string.format("Error parsing response: %s", response.body))
 		return nil
 	end
 
