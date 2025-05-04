@@ -65,6 +65,8 @@ local function create_suggestion(original_excerpt, response)
 	return before_marker .. new_content .. after_marker
 end
 
+---@param text string
+---@return string
 local function strip_markers(text)
 	local start_marker = MARKERS.EDITABLE_REGION_START
 	local end_marker = MARKERS.EDITABLE_REGION_END
@@ -120,6 +122,13 @@ function M.process_response(response, current_scope)
 		)
 		return nil
 	end
+
+	log.debug("=== Suggestion ===")
+	log.debug("--- Original ---")
+	log.debug(original)
+	log.debug("--- Suggestion ---")
+	log.debug(suggestion)
+	log.debug("=== End Suggestion ===")
 
 	-- Compute the diff between the current scope and the suggestion
 	local diff = Differ.diff(original, suggestion, current_scope.filename)
