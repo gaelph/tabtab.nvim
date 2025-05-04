@@ -26,8 +26,9 @@ function TabTabOpenAIProvider.new(opts)
 	instance.api_base = opts.api_base
 	instance.api_path = "/v1/chat/completions"
 	instance.defaults = defaults
-	instance.streams = true
+	instance.streams = false
 	instance.pending_completion = ""
+	instance.pending_payload = ""
 
 	return instance
 end
@@ -52,10 +53,21 @@ function TabTabOpenAIProvider:make_request_body(request, opts)
 		model = opts.model,
 		temperature = opts.temperature,
 		max_tokens = opts.max_tokens,
-		stream = true,
+		stream = false,
 	}
 
 	return vim.fn.json_encode(body)
+end
+
+---Trims spaces from the start of a string
+---@param s string
+---@return string
+local function trim_start(s)
+	local l = 1
+	while string.sub(s, l, l) == " " do
+		l = l + 1
+	end
+	return string.sub(s, l, #s)
 end
 
 ---Parses a partial completion from the OpenAI API
@@ -63,9 +75,11 @@ end
 ---@return string?, string?
 function TabTabOpenAIProvider:parse_partial_completion(response)
 	if not response then
+		self.pending_payload = ""
 		return nil, "error no response"
 	end
 	if not response.body then
+		self.pending_payload = ""
 		return nil, "error no response body"
 	end
 
@@ -75,7 +89,16 @@ function TabTabOpenAIProvider:parse_partial_completion(response)
 	--- We need to parse the response line by line
 	for _, line in ipairs(lines) do
 		local json = line
-		json = json:sub(#"data: ")
+		if vim.startswith(json, "data:") then
+			json = json:sub(#"data:" + 1)
+		end
+
+		-- First append any pending payload, then trim spaces
+		if self.pending_payload ~= "" then
+			json = self.pending_payload .. json
+		end
+
+		json = trim_start(json)
 
 		if #json == 0 then
 			goto continue
@@ -90,10 +113,17 @@ function TabTabOpenAIProvider:parse_partial_completion(response)
 		--- W
 		local ok, result = pcall(vim.fn.json_decode, json)
 		if not ok then
+			if result:match("Expected string end") then
+				self.pending_payload = json
+				goto continue
+			end
 			log.error("error", result, json)
 			vim.notify_once(string.format("error: %s", result), vim.log.levels.ERROR)
+			self.pending_payload = ""
 			goto continue
 		end
+
+		self.pending_payload = ""
 
 		if not result then
 			vim.notify("No result", vim.log.levels.ERROR)
