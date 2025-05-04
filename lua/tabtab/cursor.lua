@@ -12,6 +12,8 @@ local M = {}
 local default_config = {
 	-- File types to exclude
 	exclude_filetypes = {
+		"Avante",
+		"AvanteInput",
 		"TelescopePrompt",
 		"neo-tree",
 		"NvimTree",
