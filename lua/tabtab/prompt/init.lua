@@ -8,10 +8,11 @@ Your task is to:
 1. provide a properly indented completion for the code excerpt based on the edits taking the cursor location into account;
 2. fix any diagnostics provided;
 3. provide the completed version of the code between the <|editable_region_start|> and the <|editable_region_end|> tokens in its entirety, with proper indentation;
-4. pay attention to the indetation and coding style, always providing the most readable and maintainable code.
+4. pay attention to the indentation and coding style, always providing the most readable and maintainable code;
+5. provide completion that is a logical continuation of the user edits, do not revert user edits.
 
 Your output MUST:
-1. be properly indented;
+1. be properly indented. Indentation MUST be consistent with the original code, this is of the utmost importance;
 2. start with the <|editable_region_start|> token and end with <|editable_region_end|> ;
 3. only contain the completed version of the code between the <|editable_region_start|> and the <|editable_region_end|>, no chatting or other content;
 4. your output must serve as a replacement for the original code excerpt as-is. Include the lines that are not edited in the output, preserving their indentation and leading whitespace as-is;
@@ -27,49 +28,49 @@ IMPORTANT: Focus on readability. Providing ill indented code, or buggy code is u
 User Edited "lua/tabtab/providers/openai.lua":
 ```diff
 @@ -66,7 +66,6 @@
- 		and result.choices[1].message
- 		and result.choices[1].message.content
- 	then
-+ 		p
- 		return result.choices[1].message.content
- 	else
- 		log.error("invalid response: ", vim.inspect(result))
+ 			and result.choices[1].message
+ 			and result.choices[1].message.content
+ 		then
++ 			p
+ 			return result.choices[1].message.content
+ 		else
+ 			log.error("invalid response: ", vim.inspect(result))
 ```
 
 Code excerpt:
 ```lua
-		{ role = "user", content = message },
-		},
-		model = opts.model,
-		temperature = opts.temperature,
-		max_tokens = opts.max_tokens,
-		stream = false,
-	}
+			{ role = "user", content = message },
+			},
+			model = opts.model,
+			temperature = opts.temperature,
+			max_tokens = opts.max_tokens,
+			stream = false,
+		}
 
-	return vim.fn.json_encode(body)
-end
+		return vim.fn.json_encode(body)
+  end
 
 <|editable_region_start|>
-function TabTabOpenAIProvider:parse_response(response)
-	local ok, result = pcall(vim.fn.json_decode, response.body)
-	if not ok then
-		log.error("Failed to parse response: ", response.body)
-		return nil
-	end
+  function TabTabOpenAIProvider:parse_response(response)
+		local ok, result = pcall(vim.fn.json_decode, response.body)
+		if not ok then
+			log.error("Failed to parse response: ", response.body)
+			return nil
+		end
 
-	if
-		result
-		and result.choices
-		and result.choices[1]
-		and result.choices[1].message
-		and result.choices[1].message.content
-	then
+		if
+			result
+			and result.choices
+			and result.choices[1]
+			and result.choices[1].message
+			and result.choices[1].message.content
+		then
     p<|user_cursor_is_here|>
-		return result.choices[1].message.content
-	else
-		log.error("invalid response: ", vim.inspect(result))
-	end
-end<|editable_region_end|>
+			return result.choices[1].message.content
+		else
+			log.error("invalid response: ", vim.inspect(result))
+		end
+  end<|editable_region_end|>
 ```
 Indentation:
 1 tabs
@@ -80,26 +81,26 @@ openai.lua:66:1: [2] unused global `p`
 ## Assistant message
 
 <|editable_region_start|>
-function TabTabOpenAIProvider:parse_response(response)
-	local ok, result = pcall(vim.fn.json_decode, response.body)
-	if not ok then
-	  log.error("Failed to parse response: ", response.body)
-	  return nil
-	end
+  function TabTabOpenAIProvider:parse_response(response)
+    local ok, result = pcall(vim.fn.json_decode, response.body)
+    if not ok then
+      log.error("Failed to parse response: ", response.body)
+      return nil
+    end
 
-	if
-	  result
-    and result.choices
-    and result.choices[1]
-    and result.choices[1].message
-    and result.choices[1].message.content
-	then
-    print(result.choices[1].message.content)
-    return result.choices[1].message.content
-	else
-    log.error("invalid response: ", vim.inspect(result))
-  end
-end<|editable_region_end|>
+    if
+      result
+      and result.choices
+      and result.choices[1]
+      and result.choices[1].message
+      and result.choices[1].message.content
+    then
+      print(result.choices[1].message.content)
+      return result.choices[1].message.content
+    else
+      log.error("invalid response: ", vim.inspect(result))
+    end
+  end<|editable_region_end|>
 
 # Example 2
 
